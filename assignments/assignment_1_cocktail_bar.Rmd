@@ -6,7 +6,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Skills needed to solve this assignment
+# Skills needed to solve this assignmenttt
 
 -   Using R and RStudio, reading data
 -   Reporting using RMarkdown
