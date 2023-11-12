@@ -48,6 +48,12 @@ The ingredients are currently in a single cell for each cocktail. It would be be
 separated <- adatok %>%
   separate_rows(ingredients, sep = "<br/>")
 
+words_to_remove <- c("dash", "drops", "oz", "/", "\\(", "\\)", "%", "abv", "\\.")
+words_to_remove <- c(words_to_remove, as.character(0:9))
+
+sep_and_clean <- separated %>%
+  mutate(ingredients = str_replace_all(ingredients, paste(words_to_remove, collapse = "|"), "")) %>%
+  mutate(ingredients = str_squish(ingredients))
 
 ```
 
