@@ -89,7 +89,11 @@ unique_ingredients_count
 What are the 10 most frequently used ingredients? If there are ties, you can list more than 10.
 
 ```{r}
-
+top_10_frequent <- sep_and_clean %>%
+  group_by(ingredients) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  head(10)
 ```
 
 ## 6. Which cocktail(s) has/have the most ingredients?
