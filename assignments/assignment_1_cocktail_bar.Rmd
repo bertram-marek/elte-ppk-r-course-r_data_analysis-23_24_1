@@ -101,7 +101,14 @@ top_10_frequent <- sep_and_clean %>%
 Count the number of ingredients and filter all the cocktails that has that many.
 
 ```{r}
+most_ingr_cocktails <- sep_and_clean %>%
+  group_by(name) %>%
+  summarise(num_ingredients = n_distinct(ingredients)) %>%
+  arrange(desc(num_ingredients)) %>% 
+  filter(num_ingredients == max(num_ingredients))
 
+most_ingr_cocktails
+  
 ```
 
 ## 7. How many ingredients appear in only one cocktail (rare ingredient)?
