@@ -45,6 +45,9 @@ head(adatok)
 The ingredients are currently in a single cell for each cocktail. It would be better to put them in separate rows. Also, the variable should be cleaned of all quantities (e.g. 1/2 oz, 2 dashes, etc.), and the indicator of alcohol content (e.g. 47.3% abv). You will need to use this cleaned table in later tasks.
 
 ```{r}
+separated <- adatok %>%
+  separate_rows(ingredients, sep = "<br/>")
+
 
 ```
 
