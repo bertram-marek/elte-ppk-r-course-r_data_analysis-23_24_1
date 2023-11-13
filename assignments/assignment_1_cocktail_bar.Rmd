@@ -46,7 +46,7 @@ The ingredients are currently in a single cell for each cocktail. It would be be
 
 ```{r}
 separated <- adatok %>%
-  separate_rows(ingredients, sep = "<br/>")
+  separate_rows(ingredients, sep = "<br/>|<br>|<b>")
 
 words_to_remove <- c("bsp", "es", "dash", "drops", "oz", "/", "\\(", "\\)", "%", "abv", "\\.")
 words_to_remove <- c(words_to_remove, as.character(0:9))
@@ -93,7 +93,9 @@ top_10_frequent <- sep_and_clean %>%
   group_by(ingredients) %>%
   summarise(count = n()) %>%
   arrange(desc(count)) %>%
-  head(10)
+  top_n(10)
+
+top_10_frequent
 ```
 
 ## 6. Which cocktail(s) has/have the most ingredients?
