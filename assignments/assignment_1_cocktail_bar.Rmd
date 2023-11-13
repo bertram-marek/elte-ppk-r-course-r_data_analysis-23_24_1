@@ -182,6 +182,12 @@ tribble(~name, ~Lime, ~`White rum`, ~`Cane sugar`, ~`Coca-cola`, ~Mint, ~Soda,
 ```
 
 ```{r}
+cocktail_cheat_sheet <- sep_and_clean %>%
+  distinct(name, ingredients) %>%
+  pivot_wider(names_from = ingredients, values_from = ingredients, values_fn = length, values_fill = 0) %>%
+ mutate_at(vars(-name), ~ifelse(. == 1, "X", ""))
+
+cocktail_cheat_sheet
 
 ```
 
