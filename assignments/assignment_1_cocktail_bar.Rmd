@@ -148,13 +148,25 @@ num_rare_ingredients
 ## 8. Which cocktail has an ingredient that is only used in one cocktail?
 
 ```{r}
+rare_ingredients <- ingredient_in_how_many_cocktails %>%
+  filter(num_cocktails == 1)
 
+cocktails_with_rare_ingredient <- sep_and_clean %>%
+  filter(ingredients %in% rare_ingredients$ingredients) %>%
+  distinct(name)
+
+cocktails_with_rare_ingredient
 ```
 
 ## 9. What are the cocktails without rare ingredients?
 
 ```{r}
+cocktails_without_rare_ingredient <- sep_and_clean %>%
+  group_by(name) %>%
+  filter(!any(ingredients %in% rare_ingredients$ingredients)) %>%
+  distinct(name)
 
+cocktails_without_rare_ingredient
 ```
 
 ## 10. Create a cheat sheet for the bartender!
