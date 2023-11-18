@@ -20,6 +20,7 @@ You will have to create 3 plots based on the datasets and instructions detailed 
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(tidytuesdayR)
+library(scales)
 ```
 
 ## Task 1: Climbing expeditions
@@ -60,7 +61,26 @@ Notes:
 -   The line size is 1.2, the colors are from the brewer "Dark2" palette. The theme is set to minimal.
 
 ```{r}
+task_two_download <- tt_load("2019-02-19")
+phd_dataset <- task_two_download$phd_by_field
 
+phd_data_to_plot <- phd_dataset %>%
+  group_by(year, broad_field) %>%
+  summarize(total_phds = sum(n_phds, na.rm = TRUE))
+
+str(phd_data_to_plot)
+
+ggplot(phd_data_to_plot) +
+  aes(x = year, y = total_phds, color = broad_field) +
+  geom_line(linewidth = 1.2) +
+  scale_color_brewer(palette = "Dark2", name = "Broad field") +
+  geom_line() +
+  scale_x_continuous(breaks = pretty_breaks()) +
+  scale_y_continuous(labels = comma_format()) +
+  theme_minimal() +
+  ggtitle("Number of awarded Ph.D.s in the US by year") +
+  xlab(NULL) +
+  ylab(NULL)
 ```
 
 ## Task 3: Commute in the US
