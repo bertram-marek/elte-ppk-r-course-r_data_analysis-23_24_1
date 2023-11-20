@@ -21,6 +21,7 @@ knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(tidytuesdayR)
 library(scales)
+
 ```
 
 ## Task 1: Climbing expeditions
@@ -46,7 +47,8 @@ ggplot(lumped_expaditions) +
   coord_flip() +
   theme_light() +
   scale_fill_viridis_d() +
-  theme(legend.position = "bottom", plot.title.position = "plot", plot.title = element_text(hjust = 0.5))
+  theme_light() +
+  theme(legend.position = "bottom")
   
 ```
 
@@ -94,5 +96,25 @@ Notes:
 -   The point size is 2, . The theme is set to light.
 
 ```{r}
+task_three_download <- tt_load("2019-11-05")
+commute_dataset <- task_three_download$commute
 
+commute_data_to_plot <- commute_dataset %>%
+  group_by(state_abb, state_region, mode) %>%
+  summarize(total_people = sum(n, na.rm = TRUE)) %>%
+  pivot_wider(names_from = mode, values_from = total_people)
+
+ggplot(commute_data_to_plot) +
+  aes(x = Walk, y = Bike, color = state_region, label = state_abb) +
+  geom_point(size = 2) +
+  scale_x_log10(labels = comma_format()) +
+  scale_y_log10(labels = comma_format()) +
+  theme_light() +
+  labs(
+    title = "The number of people walking vs. biking to work in each USA state",
+    x = "Number of ppl walking to work (log N)",
+    y = "Number of ppl biking to work (log N)") +
+  geom_text(check_overlap = TRUE, size = 4, color = "black", nudge_y = 0.01, nudge_x = 0.01)
+  
+  
 ```
