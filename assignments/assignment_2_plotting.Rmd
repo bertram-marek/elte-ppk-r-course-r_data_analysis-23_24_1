@@ -21,7 +21,10 @@ knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(tidytuesdayR)
 library(forcats)
-tt.data <- tt_load("2020-09-22")
+library(scales)
+tt1.data <- tt_load("2020-09-22")
+tt2.data <- tt_load("2019-02-19")
+tt3.data <- tt_load("2019-11-05")
 ```
 
 ## Task 1: Climbing expeditions
@@ -33,7 +36,7 @@ The 2020-09-22 TidyTueday datasets are about climbing expeditions. From the thre
 -   The bar colors use the viridis palette and light theme.
 
 ```{r}
-expeditions <- tt.data$expeditions
+expeditions <- tt1.data$expeditions
 
 expeditions <- expeditions %>%
   mutate(peak = fct_lump(peak_name, n = 15, other_level = "Other"),
@@ -65,6 +68,22 @@ Notes:
 -   The line size is 1.2, the colors are from the brewer "Dark2" palette. The theme is set to minimal.
 
 ```{r}
+phd.data.raw <- tt2.data$phd_by_field
+
+phd.data <- phd.data.raw %>%
+  replace(is.na(.), 0) %>%
+  group_by(broad_field, year) %>%
+  summarise(Count = sum(n_phds))
+
+ggplot(phd.data, aes(year, Count, color = broad_field)) +
+  geom_line(size = 1.2) +
+  scale_x_continuous(breaks = pretty_breaks(n = 5)) +
+  scale_y_continuous(labels = comma_format()) +
+  labs(title = "Number of awarded Ph.D.-s in the Us by year", color = "Broad field") +
+  scale_color_brewer(palette = "Dark2") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank())
 
 ```
 
@@ -79,5 +98,23 @@ Notes:
 -   The point size is 2, . The theme is set to light.
 
 ```{r}
+commute.data.raw <-tt3.data$commute
 
+commute.data <- commute.data.raw %>%
+  group_by(state_abb, mode, state_region) %>%
+  summarise(count = sum(n)) %>%
+  pivot_wider(names_from = mode,
+              values_from = count) %>%
+  filter(!is.na(state_abb))
+
+ggplot(commute.data, aes(Walk, Bike, color = state_region, label = state_abb)) +
+  geom_point(size = 2) +
+  geom_text(color = "black") +
+  labs(title = "Title number of people walking vs. biking to work in each USA state", x = "Number of ppl walking to work (log N)", y = "Number of ppl biking to work (log N)", color = "State region") +
+  scale_x_log10(labels = comma_format(), ) +
+  scale_y_log10(labels = comma_format(),
+                limits = c(25, 150000)) + 
+  theme_light()
+
+  
 ```
