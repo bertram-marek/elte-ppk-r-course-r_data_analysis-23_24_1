@@ -35,12 +35,14 @@ The 2020-09-22 TidyTueday datasets are about climbing expeditions. From the thre
 -   The bars are ordered by the sum of all expeditions (use `fct_reorder()`).
 -   The bar colors use the viridis palette and light theme.
 
-```{r}
+```{r expeditions}
 expeditions <- tt1.data$expeditions
 
 expeditions <- expeditions %>%
-  mutate(peak = fct_lump(peak_name, n = 15, other_level = "Other"),
-         season = as.factor(season))
+  mutate(
+    peak = forcats::fct_lump(peak_name, n = 15, other_level = "Other"),
+    season = as.factor(season)
+  )
 
 expeditions.season <- expeditions %>%
   group_by(peak, season) %>%
@@ -49,7 +51,7 @@ expeditions.season <- expeditions %>%
 
 
 ggplot(expeditions.season, aes(x = Count, y = fct_reorder(peak, Count, .fun = sum), fill = season)) +
-  geom_bar(position ="stack", stat = "identity") +
+  geom_bar(position = "stack", stat = "identity") +
   scale_fill_viridis_d() +
   labs(y = "", x = "Number of expeditions") +
   theme_light() +
@@ -67,7 +69,7 @@ Notes:
 -   To make the x axis breaks pretty, use `scales::pretty_breaks()`, to make the y axis labels comma formatted, use `scales::comma_format()`.
 -   The line size is 1.2, the colors are from the brewer "Dark2" palette. The theme is set to minimal.
 
-```{r}
+```{r phd-data}
 phd.data.raw <- tt2.data$phd_by_field
 
 phd.data <- phd.data.raw %>%
@@ -77,14 +79,15 @@ phd.data <- phd.data.raw %>%
 
 ggplot(phd.data, aes(year, Count, color = broad_field)) +
   geom_line(size = 1.2) +
-  scale_x_continuous(breaks = pretty_breaks(n = 5)) +
-  scale_y_continuous(labels = comma_format()) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 5)) +
+  scale_y_continuous(labels = scales::comma_format()) +
   labs(title = "Number of awarded Ph.D.-s in the Us by year", color = "Broad field") +
   scale_color_brewer(palette = "Dark2") +
   theme_minimal() +
-  theme(axis.title.x = element_blank(),
-        axis.title.y = element_blank())
-
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
 ```
 
 ## Task 3: Commute in the US
@@ -97,24 +100,26 @@ Notes:
 -   Both axis scales are log transformed and the labels comma formatted, using `scales::comma_format()`
 -   The point size is 2, . The theme is set to light.
 
-```{r}
-commute.data.raw <-tt3.data$commute
+```{r commute-data}
+commute.data.raw <- tt3.data$commute
 
 commute.data <- commute.data.raw %>%
   group_by(state_abb, mode, state_region) %>%
   summarise(count = sum(n)) %>%
-  pivot_wider(names_from = mode,
-              values_from = count) %>%
+  pivot_wider(
+    names_from = mode,
+    values_from = count
+  ) %>%
   filter(!is.na(state_abb))
 
 ggplot(commute.data, aes(Walk, Bike, color = state_region, label = state_abb)) +
   geom_point(size = 2) +
   geom_text(color = "black") +
   labs(title = "Title number of people walking vs. biking to work in each USA state", x = "Number of ppl walking to work (log N)", y = "Number of ppl biking to work (log N)", color = "State region") +
-  scale_x_log10(labels = comma_format(), ) +
-  scale_y_log10(labels = comma_format(),
-                limits = c(25, 150000)) + 
+  scale_x_log10(labels = scales::comma_format(), ) +
+  scale_y_log10(
+    labels = scales::comma_format(),
+    limits = c(25, 150000)
+  ) +
   theme_light()
-
-  
 ```

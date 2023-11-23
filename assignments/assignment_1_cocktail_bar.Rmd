@@ -42,20 +42,22 @@ cocktail.data.raw <- read_tsv("https://raw.githubusercontent.com/nthun/cocktail-
 The ingredients are currently in a single cell for each cocktail. It would be better to put them in separate rows. Also, the variable should be cleaned of all quantities (e.g. 1/2 oz, 2 dashes, etc.), and the indicator of alcohol content (e.g. 47.3% abv). You will need to use this cleaned table in later tasks.
 
 ```{r cocktail-data-clean}
-cocktail.data.raw <- read_tsv("https://raw.githubusercontent.com/nthun/cocktail-balance/master/cocktail_data.tsv")
-
-cocktail.clean <- function(ingredients) {
-  cocktail.clean <- gsub("\\d+\\/\\d+\\s*oz|\\d+\\s*oz|\\(\\d+\\.?\\d*%\\s*abv\\)|\\d+|\\.|\\s+", "", ingredients)
-  cocktail.clean <- trimws(cocktail.clean)
-  return(cocktail.clean)
+cocktail.cleaner <- 
+  function(ingredients) {
+  cocktail.cleaner <-
+    gsub("\\d+\\/\\d+\\s*oz|\\d+\\s*oz|\\(\\d+\\.?\\d*%\\s*abv\\)|\\d+|\\.|\\s+", "",ingredients)
+  cocktail.cleaner <- 
+    trimws(cocktail.cleaner)
+    return(cocktail.cleaner)
 }
 
-cocktail.data.clean <- cocktail.data.raw %>%
-  mutate(ingredients = cocktail.clean(ingredients)) %>%
+cocktail.data.clean <- 
+  cocktail.data.raw %>%
+  mutate(ingredients = cocktail.cleaner(ingredients)) %>%
   separate_rows(ingredients, sep = "<br/>|<b/>|<br>") %>%
   mutate(across(where(is.character), as.factor)) %>%
   filter(ingredients != "")
-cocktail.data.clean
+cocktail.data.clean %>% glimpse
 ```
 
 ## 3. All ingredients in alphabetical order
@@ -63,7 +65,8 @@ cocktail.data.clean
 Before opening the bar, you need to find a reliable supplier that has all the ingredients. You need to send a list of all possible ingredients you will need. They don't need the quantities (i.e. how many of these are needed), just the names of the ingredients.
 
 ```{r ingredients-sort}
-ingredients.sort <- cocktail.data.clean %>%
+ingredients.sort <- 
+  cocktail.data.clean %>%
   group_by(ingredients) %>%
   summarise(ingredients) %>%
   arrange(ingredients) %>%
@@ -76,16 +79,19 @@ kable(ingredients.sort)
 How many different ingredients you will need?
 
 ```{r n-ingredients}
-n.ingredients <- nrow(ingredients.sort)
-n.ingredients
+n.ingredients <- 
+  nrow(ingredients.sort)
+
 ```
+Numer of unique ingredients: `r n.ingredients`
 
 ## 5. What are the top 10 ingredients?
 
 What are the 10 most frequently used ingredients? If there are ties, you can list more than 10.
 
 ```{r top-10}
-top.10 <- cocktail.data.clean %>%
+top.10 <- 
+  cocktail.data.clean %>%
   count(ingredients, sort = TRUE) %>%
   top_n(10, n)
 kable(top.10)
@@ -96,7 +102,8 @@ kable(top.10)
 Count the number of ingredients and filter all the cocktails that has that many.
 
 ```{r cocktail-ingredient-n}
-cocktail.ingredient.n <- cocktail.data.clean %>%
+cocktail.ingredient.n <- 
+  cocktail.data.clean %>%
   group_by(name) %>%
   summarise(ingredient.n = n()) %>%
   arrange(desc(ingredient.n)) %>%
@@ -110,7 +117,8 @@ Count all cocktails with only one ingredient, and
 
 ```{r rare-ingredient}
 
-rare.ingredients <- cocktail.data.clean %>%
+rare.ingredients <- 
+  cocktail.data.clean %>%
   group_by(ingredients) %>%
   summarise(cocktail.count = n()) %>%
   filter(cocktail.count == 1)
@@ -120,7 +128,8 @@ kable(rare.ingredients)
 ## 8. Which cocktail has an ingredient that is only used in one cocktail?
 
 ```{r cocktail-rare}
-cocktail.rare <- cocktail.data.clean %>%
+cocktail.rare <- 
+  cocktail.data.clean %>%
   filter(ingredients %in% rare.ingredients$ingredients) %>%
   distinct(name)
 kable(cocktail.rare)
@@ -129,7 +138,8 @@ kable(cocktail.rare)
 ## 9. What are the cocktails without rare ingredients?
 
 ```{r cocktail-common}
-cocktail.common <- cocktail.data.clean %>%
+cocktail.common <- 
+  cocktail.data.clean %>%
   group_by(name) %>%
   summarise(has.rare.ingredients = sum(ingredients %in% rare.ingredients$ingredients) > 0) %>%
   filter(!has.rare.ingredients)
@@ -151,7 +161,8 @@ tribble(~name, ~Lime, ~`White rum`, ~`Cane sugar`, ~`Coca-cola`, ~Mint, ~Soda,
 
 ```{r cocktail-cheatsheet}
 
-cocktail.cheatsheet <- cocktail.data.clean %>%
+cocktail.cheatsheet <- 
+  cocktail.data.clean %>%
   distinct(name, ingredients) %>%
   mutate(value = "X") %>%
   pivot_wider(names_from = ingredients, values_from = value, values_fill = "")
