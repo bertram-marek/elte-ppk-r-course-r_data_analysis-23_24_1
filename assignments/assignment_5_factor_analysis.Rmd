@@ -9,6 +9,10 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(ggplot2)
+library(knitr)
+library(psych)
+library(MVN)
 ```
 
 # Introduction
@@ -103,13 +107,48 @@ Talk about the limitations of your study and findings.
 Read the Animal Rights Scale (ARQ) dataset from the 'data/' folder. Pay attention to the extension.
 
 ```{r}
-
+file.path <- "~/elte-ppk-r-course-r_data_analysis-23_24_1/data/assignment_5_dataset.csv"
+ARQ.data <- read.csv(file.path)
 ```
 
 ## EDA
 
 ```{r}
+#structure of data
+str(ARQ.data)
 
+#Remove rows with missing values
+ARQ.data <- na.omit(ARQ.data)
+
+#inspecting data set
+describe(ARQ.data)
+
+
+#Summary statistics
+summary(ARQ.data)
+
+# Distribution of sex
+ggplot(ARQ.data, aes(x = factor(sex))) +
+  geom_bar() +
+  labs(title = "Distribution of Sex", x = "Sex", y = "Frequency")
+
+
+all.ARQ <- tidyr::gather(ARQ.data, key = "variable", value = "value", ar1:ar28)
+variable_order <- paste0("ar", 1:28)
+all.ARQ$variable <- factor(all.ARQ$variable, levels = variable_order)
+
+# Relationship between party and each ARQ item
+ggplot(all.ARQ, aes(x = factor(party), y = value, fill = factor(party))) +
+  geom_boxplot() +
+  facet_wrap(~variable, scales = "free_y", ncol = 4) +
+  labs(title = "Boxplot of ARQ items by Party", x = "Party", y = "Value") +
+  theme_minimal()
+# Relationship between gender and each ARQ item
+ggplot(all.ARQ, aes(x = factor(sex), y = value, fill = factor(sex))) +
+  geom_boxplot() +
+  facet_wrap(~variable, scales = "free_y", ncol = 4) +
+  labs(title = "Boxplot of ARQ items by Gender", x = "Gender", y = "Value") +
+  theme_minimal()
 ```
 
 ## Data manipulation
@@ -119,7 +158,9 @@ Recode the sex and party variables as factor type variables with the following l
   * party: 1 - democrat, 2 - republican, 3 - other, 4 - none
 
 ```{r}
+ARQ.data$sex <- factor(ARQ.data$sex, levels = c(1, 2), labels = c("male", "female"))
 
+ARQ.data$party <- factor(ARQ.data$party, levels = c(1, 2, 3, 4), labels = c("democrat", "republican", "other", "none"))
 ```
 
 # Creating a correlation matrix
@@ -127,13 +168,15 @@ Recode the sex and party variables as factor type variables with the following l
 __Note:__ Remember to only include the variables of the questionnaire that will be part of the factor analysis.
 
 ```{r}
-
+fa.variables <- ARQ.data[, 1:28]
 ```
 
 Create the correlation matrix.
 
 ```{r}
-
+lowerCor(fa.variables)
+corr.test(fa.variables, use ="pairwise.complete.obs")$p
+corr.test(fa.variables, use ="pairwise.complete.obs")$ci
 ```
 
 ## Visualizing the correlation matrix
@@ -149,19 +192,22 @@ Create a visualization of the results of the correlation matrix.
 Calculate the KMO score.
 
 ```{r}
-
+KMO.score <- KMO(fa.variables)
+KMO.score
 ```
 
 ## Test for multivariate normality
 
 ```{r}
-
+mardia(fa.variables)
 ```
 
 Test for skewness and kurtosis.
 
 ```{r}
-
+describe_result <- describe(fa.variables)
+print(describe_result$skew)
+print(describe_result$kurtosis)
 ```
 
 ## Create scree plot
@@ -169,7 +215,8 @@ Test for skewness and kurtosis.
 Create a scree plot to help the decision on how many factors to include.
 
 ```{r}
-
+fa.result <- fa(fa.variables, nfactors = 5, rotate = "varimax")
+scree(fa.result)
 ```
 
 ## Run the factor analysis
