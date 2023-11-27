@@ -193,7 +193,8 @@ Calculate the KMO score.
 
 ```{r}
 KMO.score <- KMO(fa.variables)
-KMO.score
+KMO.score 
+
 ```
 
 ## Test for multivariate normality
