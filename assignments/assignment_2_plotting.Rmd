@@ -31,7 +31,30 @@ The 2020-09-22 TidyTueday datasets are about climbing expeditions. From the thre
 -   The bar colors use the viridis palette and light theme.
 
 ```{r}
+library(tidyverse)
+library(tidytuesdayR)
+library(forcats)
+library(viridis)
 
+expeditions <- tt_load("2020-09-22")$expeditions
+
+# Process the data
+expeditions_processed <- expeditions %>%
+  filter(!is.na(peak_name), !is.na(season)) %>%
+  mutate(peak_name = fct_lump(peak_name, n = 15)) %>%
+  filter(peak_name != "Other") %>%
+  group_by(peak_name, season) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(peak_name = fct_reorder(peak_name, n, .fun = sum))
+
+# Create the plot
+ggplot(expeditions_processed, aes(x = n, y = peak_name, fill = season)) +
+  geom_col() +
+  scale_fill_viridis_d() +
+  theme_light() +
+  labs(x = "Number of expeditions", y = "Peaks", fill = "season",
+       title = "The 15 most popular peaks stacked by season of expedition") +
+  theme(legend.position = "bottom")
 ```
 
 ## Task 2: PhDs awarded
@@ -46,6 +69,31 @@ Notes:
 
 ```{r}
 
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
+
+# Load the data
+tt <- tt_load("2019-02-19")
+phd_by_field <- tt$phd_by_field
+
+# Remove rows with NA in n_phds
+phd_by_field <- phd_by_field %>%
+  filter(!is.na(n_phds))
+
+# Aggregate the data to count all phd-s by year and broad_field
+phd_agg <- phd_by_field %>%
+  group_by(year, broad_field) %>%
+  summarise(total = sum(n_phds), .groups = "drop")
+
+# Create the plot
+ggplot(phd_agg, aes(x = year, y = total, color = broad_field)) +
+  geom_line(size = 1.2) +
+  scale_x_continuous(breaks = pretty_breaks()) +
+  scale_y_continuous(labels = comma_format()) +
+  scale_color_brewer(palette = "Dark2") +
+  theme_minimal() +
+  labs(x = "", y= "", title = "Number of awarded Ph.D.-s in the US by year", color = "Broad field")
 ```
 
 ## Task 3: Commute in the US
@@ -59,5 +107,38 @@ Notes:
 -   The point size is 2, . The theme is set to light.
 
 ```{r}
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
 
+
+tt <- tt_load("2019-11-05")
+commute <- tt$commute
+View(commute)
+
+# Aggregate the data to count all commutes by state for each mode
+commute_walk <- commute %>%
+  filter(mode == "Walk") %>%
+  group_by(state) %>%
+  summarise(total_walk = sum(n), .groups = "drop")
+
+commute_bike <- commute %>%
+  filter(mode == "Bike") %>%
+  group_by(state) %>%
+  summarise(total_bike = sum(n), .groups = "drop")
+
+# Merge the two data frames
+commute_agg <- merge(commute_walk, commute_bike, by = "state")
+
+# Add state region and abbreviation to the data frame
+commute_agg <- merge(commute_agg, commute[, c("state", "state_region", "state_abb")], by = "state")
+
+# Create the plot
+ggplot(commute_agg, aes(x = total_walk, y = total_bike, color = state_region)) +
+  geom_point(size = 2) +
+  geom_text(aes(label = state_abb), vjust = 0.5, hjust = 0.5, color ="black") +
+  scale_x_log10(labels = comma_format()) +
+  scale_y_log10(labels = comma_format()) +
+  theme_light() +
+  labs(x = "Number of ppl walking to work (log N)", y = "Number of ppl biking to work (log N)", color = "State region", title = "Number of people walking vs. biking to work in each USA state")
 ```

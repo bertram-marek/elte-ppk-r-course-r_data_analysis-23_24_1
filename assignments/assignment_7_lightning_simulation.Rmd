@@ -33,5 +33,46 @@ There is no dataset for this project. You have to simulate from scratch!
 
 ```{r}
 
+library(tidyverse)
+library(gganimate)
+
+# Random walk
+create_lightning <- function(n, prob_fork = 0.01, id = 1) {
+  tibble(
+    x = cumsum(sample(c(-1, 0, 1), n, replace = TRUE)),
+    y = 1:n,
+    id = id
+  ) %>%
+    mutate(fork = ifelse(y > 5, runif(n) < prob_fork, FALSE)) %>%
+    group_by(id) %>%
+    mutate(fork = cumsum(fork)) %>%
+    ungroup() %>%
+    mutate(id = paste(id, fork, sep = "_")) %>%
+    select(-fork) %>%
+    group_split(id) %>%
+    map_dfr(~ {
+      remaining_steps <- n - nrow(.x)
+      if (remaining_steps > 0) {
+        bind_rows(.x, create_lightning(remaining_steps, id = .x$id[1]))
+      } else {
+        bind_rows(.x, tibble(x = .x$x[nrow(.x)], y = (nrow(.x)+1):n, id = .x$id[1]))
+      }
+    })
+}
+
+# Random lightning
+lightning <- create_lightning(100) %>%
+  mutate(id = factor(id))
+
+# Plot
+p <- ggplot(lightning, aes(x, -y, group = id)) +
+  geom_path(color = "white", linewidth = 0.1) +
+  theme_void() +
+  theme(plot.background = element_rect("black"))
+
+# Animation
+animation <- p + transition_reveal(y)
+animate(animation, nframes = 200, fps = 40)
+
 ```
 
