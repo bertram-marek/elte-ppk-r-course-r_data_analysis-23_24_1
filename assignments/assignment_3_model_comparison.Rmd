@@ -59,7 +59,16 @@ In your discussion of the findings, briefly interpret the results of the above a
 Read the dataset used in this assignment. Pay attention to the extension of the datafile.
 
 ```{r}
+library(readxl)
+library(tidyverse)
+library(broom)
+library(lavaan)
+library(lmtest)
+library(car)
+library(sjPlot)
+library(arm)
 
+pain <- read_excel("data/assignment_3_dataset.xlsx")
 ```
 
 ## Data and model diagnostics 
@@ -69,7 +78,57 @@ Read the dataset used in this assignment. Pay attention to the extension of the 
 Run an exploratory data analysis (EDA) to investigate the dataset.
 
 ```{r}
+# Distribution of pain scores per each sex
+pain %>% 
+  ggplot(aes(x = pain)) +
+  geom_histogram() +
+  facet_wrap(~sex)
 
+# Distribution of age scores per each sex
+pain %>% 
+  ggplot(aes(x = age)) +
+  geom_histogram() +
+  facet_wrap(~sex)
+
+# Distribution of STAI scores per each sex
+pain %>% 
+  ggplot(aes(x = STAI_trait, fill = sex)) +
+  geom_density(alpha = .5)
+
+# Distribution of pain catastrophizing scale scores per each sex
+pain %>% 
+  ggplot(aes(x = pain_cat, fill = sex)) +
+  geom_density(alpha = .5)
+
+# Distribution of cortisol serum level per each sex
+pain %>% 
+  ggplot(aes(x = cortisol_serum, fill = sex)) +
+  geom_density(alpha = .5)
+
+# Distribution of cortisol saliva level per each sex
+pain %>% 
+  ggplot(aes(x = cortisol_saliva, fill = sex)) +
+  geom_density(alpha = .5)
+
+# Distribution of MAAS scores per each sex
+pain %>% 
+  ggplot(aes(x = mindfulness, fill = sex)) +
+  geom_density(alpha = .5)
+
+# Distribution of weight per each sex
+pain %>% 
+  ggplot(aes(x = weight, fill = sex)) +
+  geom_density(alpha = .5)
+
+# Distribution of IQ scores per each sex
+pain %>% 
+  ggplot(aes(x = IQ, fill = sex)) +
+  geom_density(alpha = .5)
+
+# Distribution of household income per each sex
+pain %>% 
+  ggplot(aes(x = household_income, fill = sex)) +
+  geom_density(alpha = .5)
 ```
 
 #### Correct coding errors
@@ -77,7 +136,57 @@ Run an exploratory data analysis (EDA) to investigate the dataset.
 If you find values in the dataset during the EDA, that are not correct based on the provided descriptions of the variables of the dataset please correct them here.
 
 ```{r}
+# Checking missing data
+pain %>%
+  map(is.na) %>%
+  map(sum)
 
+# Checking pain scores (all scores should be on a 0-10 scale)
+pain %>% 
+  count(pain)
+
+## Pain scores correction: remove participant whose pain score was 50
+pain <- pain %>% 
+  filter(pain != 50)
+
+## Checking pain scores again
+pain %>% 
+  count(pain)
+
+# Checking sex codes
+pain %>% 
+  count(sex)
+
+## Sex codes correction: rewrite "woman" code to "female"
+pain$sex[pain$sex == "woman"] <- "female"
+
+## Checking sex codes again
+pain %>% 
+  count(sex)
+
+# Checking STAI scores (all scores should be on a 20-80 scale)
+pain %>% 
+  count(STAI_trait) %>% 
+  print(n = 26)
+
+# Checking pain catastrophizing scores (all scores should be on a 0-52 scale)
+pain %>% 
+  count(pain_cat) %>% 
+  print(n = 24)
+
+# Checking MAAS scores (all scores should be on a 1-6 scale)
+pain %>% 
+  count(mindfulness) %>% 
+  print(n = 133)
+
+## MAAS scores correction: remove participant(s) whose MAAS score is lower than 1 or higher that 6
+pain <- pain %>% 
+  filter(mindfulness >= 1 & mindfulness <= 6)
+
+## Checking MAAS scores again
+pain %>% 
+  count(mindfulness) %>% 
+  print(n = 132)
 ```
 
 ### Model diagnostics
@@ -86,7 +195,10 @@ If you find values in the dataset during the EDA, that are not correct based on 
 In order to test the more complex model for outliers and to test the assumptions first build the model.
 
 ```{r}
+pain_complex <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_saliva + cortisol_serum,
+                   data = pain)
 
+summary(pain_complex)
 ```
 
 #### Checking for influential outliers
@@ -94,7 +206,10 @@ In order to test the more complex model for outliers and to test the assumptions
 Check for outlier values in the model.
 
 ```{r}
+# Plotting Cook's distance for the model, observing the 5 most influential outliers (Cook's distance > 0.5)
+plot(pain_complex, which = 4, id.n = 5)
 
+# No influential outliers found
 ```
 
 #### Checking assumptions
@@ -102,19 +217,31 @@ Check for outlier values in the model.
 Check the normality assumption.
 
 ```{r}
+# Residuals
+residuals <- residuals(pain_complex)
 
+# Q-Q plot
+qqnorm(residuals)
+qqline(residuals)
+
+# Shapiro-Wilk test
+shapiro.test(residuals)
+
+# Based on the plot and the normality test results, the normality assumption is not violated
 ```
 
 Check the linearity assumption.
 
 ```{r}
-
+plot(x = pain_complex, which = 1)
 ```
 
 Check the homoscedasticty assumption (homogeneity of variance).
 
 ```{r}
+bptest(pain_complex)
 
+# Based on the test, the homoscedasticity assumption is not violated
 ```
 
 Check the multicollinearity assumption.
@@ -126,7 +253,11 @@ https://statisticalhorizons.com/multicollinearity
 http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity-in-regression-analysis
 
 ```{r}
+vif_values <- vif(pain_complex)
 
+print(vif_values)
+
+# Based on VIF values, cortisol saliva or cortisol serum predictor should be removed from the model. As serum cortisol is often regarded in medical research as more reliably related to stress, I will use this in an updated model and drop the saliva predictor.
 ```
 
 ### Making decision based on model diagnostics
@@ -134,13 +265,19 @@ http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity
 If based on the assumption tests you decide to drop a predictor variable you should do that here. Create your updated model.
 
 ```{r}
+pain_complex_updated <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum,
+                           data = pain)
 
+summary(pain_complex_updated)
 ```
 
 #### Checking outliers of the updated model
 
 ```{r}
+# Plotting Cook's distance for the model, observing the 5 most influential outliers (Cook's distance > 0.5)
+plot(pain_complex_updated, which = 4, id.n = 5)
 
+# No influential outliers found
 ```
 
 #### Checking assumptions of the updated model
@@ -148,44 +285,170 @@ If based on the assumption tests you decide to drop a predictor variable you sho
 Normality assumption
 
 ```{r}
+# Residuals
+residuals_updated <- residuals(pain_complex_updated)
 
+# Q-Q plot
+qqnorm(residuals_updated)
+qqline(residuals_updated)
+
+# Shapiro-Wilk test
+shapiro.test(residuals_updated)
+
+# Based on the plot and the normality test results, the normality assumption is not violated
 ```
 
 Linearity assumption
 
 ```{r}
-
+plot(x = pain_complex_updated, which = 1)
 ```
 
 Homoscedasticty assumption (homogeneity of variance)
 
 ```{r}
+bptest(pain_complex_updated)
 
+# Based on the test, the homoscedasticity assumption is not violated
 ```
 
 Multicollinearity assumption
 
 ```{r}
+vif_values_updated <- vif(pain_complex_updated)
 
+print(vif_values_updated)
+
+# Based on the VIF values, the multicollinearity assumtion is not violated in the updated model
 ```
 
 ## Model comparison
 
 Create the simple model and get the results of the model that needs to be reported based on the What to report section.
 
-```{r}
+Model test statistics:
+- adj.R2
+- F
+- df
+- p-value
 
+Statistics describing the coefficients of the predictors in a table format:
+- unstandardized regression coefficients and 95% confidence intervals
+- standardized regression coefficients (B and Beta values)
+- p-values
+
+```{r}
+# Create the simpler model
+pain_simple <- lm(pain ~ age + sex,
+                  data = pain)
+
+summary(pain_simple)
+augment(pain_simple)
+
+# Get model test statistics
+simple_model_summary <- summary(pain_simple)
+simple_adj_r2 <- simple_model_summary$adj.r.squared
+simple_f <- simple_model_summary$fstatistic[1]
+simple_f_df1 <- simple_model_summary$fstatistic[2]
+simple_f_df2 <- simple_model_summary$fstatistic[3]
+simple_p <- pf(simple_f, simple_f_df1, simple_f_df2, lower.tail = FALSE)
+
+# Display model test statistics
+cat(paste("Adjusted R2:", simple_adj_r2, "\n"))
+cat(paste("F-statistic:", simple_f, "\n"))
+cat(paste("Degrees of freedom (DF):", simple_f_df1, ",", simple_f_df2, "\n"))
+cat(paste("P-value:", simple_p, "\n"))
+
+# Coefficients information
+tab_model(pain_simple)
+
+simple_coefficients_table <- data.frame(
+  coefficients = coef(pain_simple),
+  ci_95_lower = confint(pain_simple)[, 1],
+  ci_95_upper = confint(pain_simple)[, 2],
+  std_coefficients = standardize(pain_simple)$coef,
+  p_values = summary(pain_simple)$coefficients[, 4])
+
+# Display coefficients table
+print(simple_coefficients_table)
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
 
-```{r}
+Model test statistics:
+- adj.R2
+- F
+- df
+- p-value
 
+Statistics describing the coefficients of the predictors in a table format:
+- unstandardized regression coefficients and 95% confidence intervals
+- standardized regression coefficients (B and Beta values)
+- p-values
+
+```{r}
+# Complex model is already created
+pain_complex_updated
+
+summary(pain_complex_updated)
+augment(pain_complex_updated)
+
+# Get model test statistics
+complex_model_summary <- summary(pain_simple)
+complex_adj_r2 <- complex_model_summary$adj.r.squared
+complex_f <- complex_model_summary$fstatistic[1]
+complex_f_df1 <- complex_model_summary$fstatistic[2]
+complex_f_df2 <- complex_model_summary$fstatistic[3]
+complex_p <- pf(complex_f, complex_f_df1, complex_f_df2, lower.tail = FALSE)
+
+# Display model test statistics
+cat(paste("Adjusted R2:", complex_adj_r2, "\n"))
+cat(paste("F-statistic:", complex_f, "\n"))
+cat(paste("Degrees of freedom (DF):", complex_f_df1, ",", complex_f_df2, "\n"))
+cat(paste("P-value:", complex_p, "\n"))
+
+# Coefficients information
+tab_model(pain_complex_updated)
+
+complex_coefficients_table <- data.frame(
+  coefficients = coef(pain_complex_updated),
+  ci_95_lower = confint(pain_complex_updated)[, 1],
+  ci_95_upper = confint(pain_complex_updated)[, 2],
+  std_coefficients = standardize(pain_complex_updated)$coef,
+  p_values = summary(pain_complex_updated)$coefficients[, 4])
+
+# Display coefficients table
+print(complex_coefficients_table)
+
+# Regression equation: pain = 1.94 + -0.03*age + 0.32*sex + -0.01*STAI_trait + 0.08*pain_cat + -0.14*mindfulness + 0.54*cortisol_serum
 ```
 
 Compare the two models.
 
-```{r}
+- F test statistic
+- p-value of the likelihood ratio test comparing the two models
+- AIC
 
+```{r}
+# Compare the two models
+compare <- anova(pain_simple, pain_complex_updated)
+
+# Extract F and p values
+compare_f <- compare$F[2]
+compare_p <- compare$Pr[2]
+
+# Display F and p values
+cat(paste("F-test statistic:", compare_f, "\n"))
+cat(paste("p-value:", compare_p, "\n"))
+
+# Look at the two models and their AIC values
+glance(pain_simple) %>%
+  rbind(glance(pain_complex_updated)) %>%
+  as.data.frame()
+
+# The two models differ significantly, and as the AIC of the complex model (528.53) is lower than the AIC of the simpler model (572.48), the complex model is considered better.
 ```
 
+Discussion
+
+In this analysis, I have built a simpler and a more complex model to predict the amount of pain experienced around and after surgeries. The simpler model contains two predictors (age and sex), while the complex one contains six predictors (age, sex, anxiety, pain catastrophizing, mindfulness, and cortisol serum level). Originally, I have planned to include cortisol saliva level in the complex model as well, but based on the failed multicollinearity assumption check of the model, I decided to drop it. The comparision of the simple and the complex model shows that including psychological and hormone measures in the model leads to better prediction of pain, that is, the more complex model is better than the simple one.
