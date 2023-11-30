@@ -69,6 +69,12 @@ library(ggfortify)
 library(lmtest)
 library(olsrr)
 library(jtools)
+library(lm.beta)
+library(huxtable)
+
+# Turning off scientific notation
+
+options(scipen=999)
 
 data <- read_excel("data/assignment_3_dataset.xlsx")
 ```
@@ -167,7 +173,7 @@ In order to test the more complex model for outliers and to test the assumptions
 
 complex_model <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum + cortisol_saliva, data = good_data)
 
-summ(complex_model, scale=TRUE)
+summary(complex_model)
 ```
 
 #### Checking for influential outliers
@@ -254,7 +260,7 @@ If based on the assumption tests you decide to drop a predictor variable you sho
 
 complex_model_2 <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum, data = good_data)
 
-summ(complex_model_2, scale=TRUE)
+summary(complex_model_2)
 
 ```
 
@@ -327,18 +333,84 @@ ols_vif_tol(complex_model_2)
 Create the simple model and get the results of the model that needs to be reported based on the What to report section.
 
 ```{r}
+# I created the simple model, then the standardized simple model (for the Beta-values). 
 
+simple_model <- lm(pain ~age + sex, data = good_data)
+standardized_simple_model <- lm.beta(simple_model)
+
+# Here, I calculated the results and saved them.
+
+result_unstandardized_simple <- summ(simple_model, confint = TRUE, digits = 3)
+result_standardized_simple <- summ(standardized_simple_model,confint = TRUE, digits = 3)
+
+# This is the result of the unstandardized simple model. You can find the test statistics (adj.R2, F, df, and p value) in the output, and also the unstandardized regression coefficients (B-values), 95% confidence intervals, and p-values.
+
+result_unstandardized_simple
+
+# This is the result of the standardized simple model. The test statistics (adj.R2, F, df, and p value) are the same as the previous, unstandardized model, but you can also the standardized regression coefficients (Beta-values), 95% confidence intervals, and p-values in this.
+
+result_standardized_simple
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
 
 ```{r}
+# The unstandardized complex model was created before, here I created the standardized complex model (for the Beta-values). 
 
+standardized_complex_model_2 <- lm.beta(complex_model_2)
+
+# Here, I calculated the results and saved them.
+
+results_unstandardized_complex <- summ(complex_model_2)
+results_standardized_complex <-  summ(standardized_complex_model_2)
+
+# This is the result of the unstandardized complex model. You can find the test statistics (adj.R2, F, df, and p value) in the output, and also the unstandardized regression coefficients (B-values), 95% confidence intervals, and p-values.
+
+results_unstandardized_complex
+
+# This is the result of the standardized complex model. The test statistics (adj.R2, F, df, and p value) are the same as the previous, unstandardized model, but you can also the standardized regression coefficients (Beta-values), 95% confidence intervals, and p-values in this.
+
+results_standardized_complex
 ```
 
 Compare the two models.
 
 ```{r}
+# Here, I calculated and saved the Akaike information criterion (AIC) for both models.
 
+aic_simple_model <- AIC(simple_model)
+aic_complex_model_2 <- AIC(complex_model_2)
+
+# This is the Akaike information criterion (AIC) tibble for easier comparison.
+
+AIC_table <- tibble(
+  "Model" = c("Simple Model", "Complex Model"),
+  "AIC" = c(aic_simple_model, aic_complex_model_2))
+
+AIC_table
+
+# We can easily compare the two models below, this output includes the coefficients, and also the R-squared values.
+
+export_summs(simple_model, complex_model_2, scale = TRUE,
+             error_format = "[{conf.low}, {conf.high}]")
+
+
+# F-test comparing the two models
+
+f_test_result <- anova(simple_model, complex_model_2)
+
+# Displaying the F-test result (F-statistic and p-value)
+
+f_test_result
+
+# Likelihood ratio test comparing the two models
+
+lr_test_result <- lrtest(simple_model, complex_model_2)
+
+# Displaying the likelihood ratio test result (likelihood ratio statistic and p-value)
+
+lr_test_result
+
+# From all the results above, we can conclude that our complex model performed better than our simple model. Both the ANOVA test and the likelihood ratio test showed significant differences between the two models. The AIC of the complex model was smaller than that of the simple model, indicating a better fit. In the complex model, the R-squared value was higher than in the simple model, indicating that more of the variance in pain was explained by the independent variables in that model (there was added value in adding the psychological and hormonal predictors).
 ```
 
