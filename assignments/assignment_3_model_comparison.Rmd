@@ -59,6 +59,10 @@ In your discussion of the findings, briefly interpret the results of the above a
 Read the dataset used in this assignment. Pay attention to the extension of the datafile.
 
 ```{r}
+library(readxl)
+library(dplyr)
+assignment_3_dataset <-read_excel("data/assignment_3_dataset.xlsx")
+View(assignment_3_dataset)
 
 ```
 
@@ -69,7 +73,22 @@ Read the dataset used in this assignment. Pay attention to the extension of the 
 Run an exploratory data analysis (EDA) to investigate the dataset.
 
 ```{r}
+library(dplyr)
 
+#Summary of the dataset
+summary(assignment_3_dataset)
+
+#Structure of the dataset
+str(assignment_3_dataset)
+
+# More detailed descriptives
+if (!require(psych)) {
+  install.packages('psych')
+}
+library(psych)
+
+#Detailed descriptives of the dataset
+describe(assignment_3_dataset)
 ```
 
 #### Correct coding errors
@@ -77,6 +96,23 @@ Run an exploratory data analysis (EDA) to investigate the dataset.
 If you find values in the dataset during the EDA, that are not correct based on the provided descriptions of the variables of the dataset please correct them here.
 
 ```{r}
+
+library(dplyr)
+
+# Correcting coding errors in 'sex' variable
+assignment_3_dataset <- assignment_3_dataset %>%
+  mutate(sex = ifelse(sex == "woman", "female", sex))
+
+# Correcting outliers in 'pain' variable
+assignment_3_dataset <- assignment_3_dataset %>%
+  mutate(pain = ifelse(pain > 10, as.numeric(substr(pain, 1, 1)), pain))
+
+# Correcting 'mindfulness' variable
+assignment_3_dataset <- assignment_3_dataset %>%
+  mutate(mindfulness = ifelse(mindfulness > 6, 6, 
+                              ifelse(mindfulness < 1, 1, mindfulness)))
+View(assignment_3_dataset)
+
 
 ```
 
@@ -86,7 +122,17 @@ If you find values in the dataset during the EDA, that are not correct based on 
 In order to test the more complex model for outliers and to test the assumptions first build the model.
 
 ```{r}
+library(dplyr)
 
+# Convert 'sex' variable to numeric
+assignment_3_dataset <- assignment_3_dataset %>%
+  mutate(sex = ifelse(sex == "male", 0, 1))
+
+# Build the model
+model <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum + cortisol_saliva, data = assignment_3_dataset)
+
+# Print the summary of the model
+summary(model)
 ```
 
 #### Checking for influential outliers
@@ -94,6 +140,16 @@ In order to test the more complex model for outliers and to test the assumptions
 Check for outlier values in the model.
 
 ```{r}
+library(car)
+
+# Calculate Cook's distance
+cooks_dist <- cooks.distance(model)
+
+# Print the observations with Cook's distance > 1
+influential <- which(cooks_dist > 1)
+print(influential)
+
+View(assignment_3_dataset)
 
 ```
 
@@ -103,17 +159,44 @@ Check the normality assumption.
 
 ```{r}
 
+library(ggplot2)
+
+#Q-Q plot
+qqnorm(residuals(model))
+qqline(residuals(model))
+
+# Histogram of residuals. Uncomment this to view.
+#hist(residuals(model), main = "Histogram of Residuals", xlab = "Residuals")
+
+#Shapiro-Wilk test for normality
+shapiro.test(residuals(model))
+
 ```
 
 Check the linearity assumption.
 
 ```{r}
+# Scatter plot of observed vs predicted values
+ggplot(data = assignment_3_dataset, aes(x = predict(model), y = pain)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red")
 
 ```
 
 Check the homoscedasticty assumption (homogeneity of variance).
 
 ```{r}
+# Residuals vs fitted values plot
+plot(model, which = 1)
+
+if (!require(lmtest)) {
+  install.packages('lmtest')
+}
+
+library(lmtest)
+
+# The Breusch-Pagan test
+bptest(model)
 
 ```
 
@@ -126,6 +209,10 @@ https://statisticalhorizons.com/multicollinearity
 http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity-in-regression-analysis
 
 ```{r}
+library(car)
+
+# Calculate VIF
+vif(model)
 
 ```
 
@@ -134,12 +221,24 @@ http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity
 If based on the assumption tests you decide to drop a predictor variable you should do that here. Create your updated model.
 
 ```{r}
+# Udated model without the 'cortisol_saliva' variable
+updated_model <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum, data = assignment_3_dataset)
+
+# Print the summary of the updated model
+summary(updated_model)
 
 ```
 
 #### Checking outliers of the updated model
 
 ```{r}
+library(car)
+# Cook's distance for the updated model
+cooks_dist_updated <- cooks.distance(updated_model)
+
+# Print the observations with Cook's distance > 1
+influential_updated <- which(cooks_dist_updated > 1)
+print(influential_updated)
 
 ```
 
@@ -148,25 +247,34 @@ If based on the assumption tests you decide to drop a predictor variable you sho
 Normality assumption
 
 ```{r}
+# Q-Q plot
+qqnorm(residuals(updated_model))
+qqline(residuals(updated_model))
 
 ```
 
 Linearity assumption
 
 ```{r}
-
+# Scatter plot of observed vs predicted values
+ggplot(data = assignment_3_dataset, aes(x = predict(updated_model), y = pain)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red")
 ```
 
 Homoscedasticty assumption (homogeneity of variance)
 
 ```{r}
+# Residuals vs fitted values plot
+plot(updated_model, which = 1)
 
 ```
 
 Multicollinearity assumption
 
 ```{r}
-
+# Calculate VIF
+vif(updated_model)
 ```
 
 ## Model comparison
@@ -175,17 +283,233 @@ Create the simple model and get the results of the model that needs to be report
 
 ```{r}
 
+library(dplyr)
+if (!require(QuantPsyc)) {
+  install.packages('QuantPsyc')
+}
+library(QuantPsyc)
+
+# Create the simple model
+simple_model <- lm(pain ~ age + sex, data = assignment_3_dataset)
+
+# Print the summary of the simple model
+simple_model_summary <- summary(simple_model)
+print(simple_model_summary)
+
+# Extract the model test statistics for the simple model
+simple_adj_r2 <- simple_model_summary$adj.r.squared
+simple_f_statistic <- simple_model_summary$fstatistic[1]
+simple_f_df <- simple_model_summary$fstatistic[2:3]
+simple_f_p_value <- pf(simple_f_statistic, df1=simple_f_df[1], df2=simple_f_df[2], lower.tail=FALSE)
+
+# Extract the coefficients' statistics for the simple model
+simple_coefficients <- simple_model_summary$coefficients
+
+# Get the unstandardized regression coefficients (B values) and p-values
+simple_b_values <- simple_model_summary$coefficients[, "Estimate"]
+simple_p_values <- simple_model_summary$coefficients[, "Pr(>|t|)"]
+
+# Calculate the standardized regression coefficients (Beta values)
+simple_beta_values <- c(NA, lm.beta(simple_model))
+
+# Calculate the 95% confidence intervals
+simple_conf_int <- confint(simple_model)
+
+# Combine all the results into a data frame
+simple_results <- data.frame(
+  B = simple_b_values,
+  Beta = simple_beta_values,
+  `95% CI` = paste("(", round(simple_conf_int[, 1], 3), ", ", round(simple_conf_int[, 2], 3), ")", sep = ""),
+  `p-value` = simple_p_values
+)
+
+# Print the results
+print(simple_results)
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
 
 ```{r}
+library(dplyr)
+if (!require(QuantPsyc)) {
+  install.packages('QuantPsyc')
+}
+library(QuantPsyc)
 
+# Build the more complex model
+complex_model <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum, data = assignment_3_dataset)
+
+# Print the summary of the complex model
+complex_model_summary <- summary(complex_model)
+print(complex_model_summary)
+
+# Extract the model test statistics for the complex model
+complex_adj_r2 <- complex_model_summary$adj.r.squared
+complex_f_statistic <- complex_model_summary$fstatistic[1]
+complex_f_df <- complex_model_summary$fstatistic[2:3]
+complex_f_p_value <- pf(complex_f_statistic, df1=complex_f_df[1], df2=complex_f_df[2], lower.tail=FALSE)
+
+# Get the unstandardized regression coefficients (B values) and p-values
+b_values <- complex_model_summary$coefficients[, "Estimate"]
+p_values <- complex_model_summary$coefficients[, "Pr(>|t|)"]
+
+# Calculate the standardized regression coefficients (Beta values)
+beta_values <- c(NA, lm.beta(complex_model))
+
+# Calculate the 95% confidence intervals
+conf_int <- confint(complex_model)
+
+# Combine all the results into a data frame
+results <- data.frame(
+  B = b_values,
+  Beta = beta_values,
+  `95% CI` = paste("(", round(conf_int[, 1], 3), ", ", round(conf_int[, 2], 3), ")", sep = ""),
+  `p-value` = p_values
+)
+
+# Print the results
+print(results)
+
+# Extract the coefficients' statistics for the complex model
+complex_coefficients <- complex_model_summary$coefficients
+
+# Extract the coefficients
+intercept <- complex_coefficients[1, 1]
+age_coef <- complex_coefficients[2, 1]
+sex_coef <- complex_coefficients[3, 1]
+STAI_trait_coef <- complex_coefficients[4, 1]
+pain_cat_coef <- complex_coefficients[5, 1]
+mindfulness_coef <- complex_coefficients[6, 1]
+cortisol_serum_coef <- complex_coefficients[7, 1]
+
+# Write the equation
+equation <- paste("Pain = ", round(intercept, 3), 
+                  " + ", round(age_coef, 3), "*Age", 
+                  " + ", round(sex_coef, 3), "*Sex", 
+                  " + ", round(STAI_trait_coef, 3), "*STAI_trait", 
+                  " + ", round(pain_cat_coef, 3), "*Pain_Cat", 
+                  " + ", round(mindfulness_coef, 3), "*Mindfulness", 
+                  " + ", round(cortisol_serum_coef, 3), "*Cortisol_Serum")
+
+# Print the equation
+print(equation)
 ```
 
 Compare the two models.
 
 ```{r}
+library(dplyr)
+library(broom)
 
+# Compare the two models
+model_comparison <- anova(simple_model, complex_model)
+aic_simple <- AIC(simple_model)
+aic_complex <- AIC(complex_model)
+
+# Create a data frame for the simple model
+simple_model_df <- data.frame(
+  Model = "Simple Model",
+  Adj.R2 = simple_adj_r2,
+  F = simple_f_statistic,
+  df = paste(simple_f_df[1], simple_f_df[2], sep=", "),
+  p_value = simple_f_p_value,
+  AIC = AIC(simple_model)
+)
+
+# Add the coefficients to the data frame
+for (i in 1:nrow(simple_coefficients)) {
+  simple_model_df[paste("b", i-1),] <- simple_coefficients[i, 1]
+}
+
+# Create a data frame for the complex model
+complex_model_df <- data.frame(
+  Model = "Complex Model",
+  Adj.R2 = complex_adj_r2,
+  F = complex_f_statistic,
+  df = paste(complex_f_df[1], complex_f_df[2], sep=", "),
+  p_value = complex_f_p_value,
+  AIC = AIC(complex_model)
+)
+
+# Add the coefficients to the data frame
+for (i in 1:nrow(complex_coefficients)) {
+  complex_model_df[paste("b", i-1),] <- complex_coefficients[i, 1]
+}
+
+# Combine the two data frames
+results_df <- rbind(simple_model_df, complex_model_df)
+
+# Print the results table
+print(results_df)
+
+
+# Get the statistics describing the coefficients of the predictors in a table format
+simple_model_summary <- tidy(simple_model)
+complex_model_summary <- tidy(complex_model)
+
+# Print the summaries
+print(simple_model_summary)
+print(complex_model_summary)
+
+# Compare the two models in terms of how much variance they explain
+simple_model_adj_r2 <- summary(simple_model)$adj.r.squared
+complex_model_adj_r2 <- summary(complex_model)$adj.r.squared
+
+# Print the adjusted R-squared values
+print(paste("Adjusted R-squared for the simple model: ", round(simple_model_adj_r2, 3)))
+print(paste("Adjusted R-squared for the complex model: ", round(complex_model_adj_r2, 3)))
+
+# Report Akaike information criterion (AIC) for both models
+simple_model_aic <- AIC(simple_model)
+complex_model_aic <- AIC(complex_model)
+
+# Print the AIC values
+print(paste("AIC for the simple model: ", round(simple_model_aic, 3)))
+print(paste("AIC for the complex model: ", round(complex_model_aic, 3)))
+
+# Perform the likelihood ratio test comparing the two models
+lr_test <- anova(simple_model, complex_model)
+
+# Print the F test statistic and p value of the likelihood ratio test
+print(paste("F test statistic of the likelihood ratio test: ", round(lr_test$F[2], 3)))
+print(paste("p value of the likelihood ratio test: ", round(lr_test$`Pr(>F)`[2], 3)))
+
+# Create a list of models
+models <- list(simple_model, complex_model)
+
+# Get R2, F, df, AIC
+model_summaries <- lapply(models, broom::glance)
+
+# Get coefficients, p-values
+model_coefficients <- lapply(models, broom::tidy)
+
+# Print the model summaries
+print(model_summaries)
+
+# Print the model coefficients
+print(model_coefficients)
 ```
+
+
+What to discuss and summary:
+
+Age and Sex: In the simple model, age was a significant predictor of pain, while sex was not. This suggests that age may play a role in the experience of pain, but sex does not appear to have a significant effect in this dataset. However, it’s important to note that these are only two of many potential demographic factors that could influence pain. Other factors such as ethnicity, socioeconomic status, and education level could also play a role and should be considered in future research.
+
+STAI_trait: The State-Trait Anxiety Inventory (STAI) trait score was not a significant predictor in the complex model. This suggests that trait anxiety, as measured by the STAI, may not have a strong relationship with pain in this dataset. However, it’s worth noting that the relationship between anxiety and pain is complex and can be influenced by many factors, including the type and severity of pain, the individual’s coping strategies, and other psychological factors.
+
+Pain_cat: The pain category was a significant predictor in the complex model. This suggests that the type or category of pain that an individual is experiencing can significantly influence their pain levels. This aligns with clinical observations and highlights the importance of accurately diagnosing and categorizing pain in order to effectively manage it.
+
+Mindfulness: Mindfulness was not a significant predictor in the complex model. This suggests that mindfulness, as measured in this study, may not have a strong relationship with pain. However, other research has found that mindfulness-based interventions can be effective in managing chronic pain, suggesting that the relationship between mindfulness and pain may be more complex and could be influenced by how mindfulness is practiced and measured.
+
+Cortisol_serum: The level of cortisol in the serum was a significant predictor in the complex model. This suggests that physiological factors, such as stress hormone levels, can significantly influence pain. This aligns with a substantial body of research showing that pain and stress are closely linked, and highlights the importance of considering physiological factors in pain management.
+
+In conclusion, the results of this analysis suggest that both psychological and physiological factors can play a significant role in the experience of pain. The complex model, which included these factors, explained a significantly larger proportion of the variance in pain than the simple model, which only included demographic factors. This underscores the importance of a biopsychosocial approach to understanding and managing pain, which recognizes the interplay of biological, psychological, and social factors.
+
+The simple model, which only included age and sex as predictors, explained about 7.6% of the variance in pain (adjusted R-squared = 0.076). The complex model, which also included STAI_trait, pain_cat, mindfulness, and cortisol_serum as predictors, explained about 32.7% of the variance in pain (adjusted R-squared = 0.327). This indicates that the inclusion of the psychological and hormone measures in the model significantly increased the amount of variance explained.
+
+In the complex model, pain_cat and cortisol_serum were significant predictors of pain. This suggests that these variables have a meaningful relationship with pain and their inclusion in the model provides valuable information.
+
+The Akaike information criterion (AIC), which is used for model comparison with lower values indicating better model fit, was lower for the complex model (AIC = 533.395) compared to the simple model (AIC = 580.091). This further supports the conclusion that the complex model provides a better fit to the data.
+
+In conclusion, the inclusion of psychological and hormone measures in the model appears to have provided significant value in explaining the variance in pain. This suggests that these factors may play an important role in the experience of pain and should be considered in future research and clinical practice. However, it’s important to note that while these results are statistically significant, further research is needed to explore the causal relationships and potential mechanisms at play.
 
