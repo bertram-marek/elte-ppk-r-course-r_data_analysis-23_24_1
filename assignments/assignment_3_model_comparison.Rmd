@@ -65,6 +65,10 @@ library(readxl)
 library(tidyverse)
 library(ggplot2)
 library(broom)
+library(ggfortify)
+library(lmtest)
+library(olsrr)
+library(jtools)
 
 data <- read_excel("data/assignment_3_dataset.xlsx")
 ```
@@ -111,6 +115,8 @@ wrong_data <- data %>%
     pain_cat > 52 |
     any(is.na(.)))
 
+wrong_data
+
 # In total 3 rows have a coding error, in one case the column "sex", in one case "pain", in one case "mindfulness" is wrong. Since the other values for these participants seem to be OK, I do not remove them from the data set, but I'll recode their values.
 ```
 
@@ -142,6 +148,8 @@ wrong_data_2 <- good_data %>%
     pain_cat > 52 |
     any(is.na(.)))
 
+wrong_data_2
+
 # Because there are no observations in "wrong_data_2", the code errors have been fixed. Now I will convert the sex variable to a factor.
 
 good_data$sex <- as.factor(good_data$sex)
@@ -159,7 +167,7 @@ In order to test the more complex model for outliers and to test the assumptions
 
 complex_model <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum + cortisol_saliva, data = good_data)
 
-complex_model
+summ(complex_model, scale=TRUE)
 ```
 
 #### Checking for influential outliers
@@ -167,11 +175,20 @@ complex_model
 Check for outlier values in the model.
 
 ```{r}
-# Checking Cook's distance
+# Checking Cook's distance and Studentized residuals
 
 augment(complex_model) %>%
-  select(pain, age, sex, STAI_trait, pain_cat, mindfulness, cortisol_serum, cortisol_saliva, .cooksd) %>% 
-  arrange(desc(.cooksd))
+  select(.cooksd) %>% 
+  arrange(desc(.cooksd)) %>%
+  head(10)
+
+autoplot(
+  complex_model,
+  which = 4)
+
+ols_plot_resid_stud(complex_model)
+
+# Based on Cook's distance values the 3 most influential observations would be number 81, 106 and 110. However, I would not exclude them from the sample. The studentized residuals plot also does not indicate outliars.
 ```
 
 #### Checking assumptions
@@ -179,19 +196,35 @@ augment(complex_model) %>%
 Check the normality assumption.
 
 ```{r}
+# I am drawing a Q-Q plot to see if the residuals follow a normal distribution.
 
+autoplot(
+  complex_model,
+  which = 2)
+
+# Since the residuals closely follow the normal distribution, this assumption is not violated. However, note that the residual of obs. 142 is larger than expected.
 ```
 
 Check the linearity assumption.
 
 ```{r}
+# Since we have a lot of predictors, I am testing the assumption of linearity with a significance test.
 
+raintest(complex_model)
+
+# The p-value indicates a non-significant result, so the assumption of linearity is not violated. 
 ```
 
 Check the homoscedasticty assumption (homogeneity of variance).
 
 ```{r}
+# I'm drawing a "Residuals vs. Fitted values" plot to check if the homoscedasticty assumption is violated or not.
 
+autoplot(
+  complex_model,
+  which = 1)
+
+# Since the points are randomly scattered and they don't form a funnel shape or recognizably curved structure, the homoscedasticity condition is satisfied.
 ```
 
 Check the multicollinearity assumption.
@@ -203,7 +236,11 @@ https://statisticalhorizons.com/multicollinearity
 http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity-in-regression-analysis
 
 ```{r}
+# I'm checking the VIF scores:
 
+ols_vif_tol(complex_model)
+
+# "cortisol_serum" and "cortisol_saliva" have a pretty high VIF-value. 
 ```
 
 ### Making decision based on model diagnostics
@@ -211,12 +248,33 @@ http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity
 If based on the assumption tests you decide to drop a predictor variable you should do that here. Create your updated model.
 
 ```{r}
+# When I was checking the multicollinearity assumption, I found out that "cortisol_serum" and "cortisol_saliva" have a pretty high VIF-value. Since they are measuring the same thing, just in different ways, this is not a surprise. I decided to drop "cortisol_saliva" because according to the description, "cortisol_serum" is a more reliable measure of cortisol.
+
+# This is the new model:
+
+complex_model_2 <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum, data = good_data)
+
+summ(complex_model_2, scale=TRUE)
 
 ```
 
 #### Checking outliers of the updated model
 
 ```{r}
+# Checking Cook's distance and Studentized residuals of the updated model
+
+augment(complex_model_2) %>%
+  select(.cooksd) %>% 
+  arrange(desc(.cooksd)) %>%
+  head(10)
+
+autoplot(
+  complex_model_2,
+  which = 4)
+
+ols_plot_resid_stud(complex_model_2)
+
+# The same observations (n. 86, 106, 110) are the most influential in the new model as well, and they have a little bigger cook's distance value compared to the previous model. The Studentized residuals plot also does not show outliers above the recommended treshold, so I would not exclude any observation.
 
 ```
 
@@ -225,25 +283,43 @@ If based on the assumption tests you decide to drop a predictor variable you sho
 Normality assumption
 
 ```{r}
+# I am drawing a Q-Q plot to see if the residuals follow a normal distribution.
 
+autoplot(
+  complex_model_2,
+  which = 2)
+
+# I got the same result as before: since the residuals closely follow the normal distribution, this assumption is not violated. However, note that the residual of obs. 142 is larger than expected.
 ```
 
 Linearity assumption
 
 ```{r}
+raintest(complex_model_2)
 
+# The p-value indicates a non-significant result, so the assumption of linearity is not violated. 
 ```
 
 Homoscedasticty assumption (homogeneity of variance)
 
 ```{r}
+# I'm drawing a "Residuals vs. Fitted values" plot to check if the homoscedasticty assumption is violated or not.
 
+autoplot(
+  complex_model_2,
+  which = 1)
+
+# Since the points are randomly scattered and they don't form a funnel shape or recognizably curved structure, the homoscedasticity condition is satisfied.
 ```
 
 Multicollinearity assumption
 
 ```{r}
+# I'm checking the VIF scores:
 
+ols_vif_tol(complex_model_2)
+
+# Now, the VIF scores are all much closer to 1, so the multicollinearity problem has been solved by this new complex model.
 ```
 
 ## Model comparison
