@@ -1,8 +1,10 @@
 ---
-title: "Assignment 3: Model comparison"
+title: 'Assignment 3: Model comparison'
 author: "Marton Kovacs/Zoltan Kekecs"
-output: html_document
-editor_options: 
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
   chunk_output_type: console
 ---
 
@@ -76,7 +78,7 @@ library(huxtable)
 
 options(scipen=999)
 
-data <- read_excel("data/assignment_3_dataset.xlsx")
+data <- read_excel("/Users/lubicsoliver/Desktop/R_CLass/data/assignment_3_dataset.xlsx")
 ```
 
 ## Data and model diagnostics 
@@ -361,8 +363,8 @@ standardized_complex_model_2 <- lm.beta(complex_model_2)
 
 # Here, I calculated the results and saved them.
 
-results_unstandardized_complex <- summ(complex_model_2)
-results_standardized_complex <-  summ(standardized_complex_model_2)
+results_unstandardized_complex <- summ(complex_model_2, confint = TRUE, digits = 3)
+results_standardized_complex <-  summ(standardized_complex_model_2, confint = TRUE, digits = 3)
 
 # This is the result of the unstandardized complex model. You can find the test statistics (adj.R2, F, df, and p value) in the output, and also the unstandardized regression coefficients (B-values), 95% confidence intervals, and p-values.
 
