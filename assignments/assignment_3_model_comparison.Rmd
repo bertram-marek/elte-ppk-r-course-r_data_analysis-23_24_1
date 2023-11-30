@@ -490,3 +490,26 @@ print(model_summaries)
 print(model_coefficients)
 ```
 
+
+What to discuss and summary:
+
+Age and Sex: In the simple model, age was a significant predictor of pain, while sex was not. This suggests that age may play a role in the experience of pain, but sex does not appear to have a significant effect in this dataset. However, it’s important to note that these are only two of many potential demographic factors that could influence pain. Other factors such as ethnicity, socioeconomic status, and education level could also play a role and should be considered in future research.
+
+STAI_trait: The State-Trait Anxiety Inventory (STAI) trait score was not a significant predictor in the complex model. This suggests that trait anxiety, as measured by the STAI, may not have a strong relationship with pain in this dataset. However, it’s worth noting that the relationship between anxiety and pain is complex and can be influenced by many factors, including the type and severity of pain, the individual’s coping strategies, and other psychological factors.
+
+Pain_cat: The pain category was a significant predictor in the complex model. This suggests that the type or category of pain that an individual is experiencing can significantly influence their pain levels. This aligns with clinical observations and highlights the importance of accurately diagnosing and categorizing pain in order to effectively manage it.
+
+Mindfulness: Mindfulness was not a significant predictor in the complex model. This suggests that mindfulness, as measured in this study, may not have a strong relationship with pain. However, other research has found that mindfulness-based interventions can be effective in managing chronic pain, suggesting that the relationship between mindfulness and pain may be more complex and could be influenced by how mindfulness is practiced and measured.
+
+Cortisol_serum: The level of cortisol in the serum was a significant predictor in the complex model. This suggests that physiological factors, such as stress hormone levels, can significantly influence pain. This aligns with a substantial body of research showing that pain and stress are closely linked, and highlights the importance of considering physiological factors in pain management.
+
+In conclusion, the results of this analysis suggest that both psychological and physiological factors can play a significant role in the experience of pain. The complex model, which included these factors, explained a significantly larger proportion of the variance in pain than the simple model, which only included demographic factors. This underscores the importance of a biopsychosocial approach to understanding and managing pain, which recognizes the interplay of biological, psychological, and social factors.
+
+The simple model, which only included age and sex as predictors, explained about 7.6% of the variance in pain (adjusted R-squared = 0.076). The complex model, which also included STAI_trait, pain_cat, mindfulness, and cortisol_serum as predictors, explained about 32.7% of the variance in pain (adjusted R-squared = 0.327). This indicates that the inclusion of the psychological and hormone measures in the model significantly increased the amount of variance explained.
+
+In the complex model, pain_cat and cortisol_serum were significant predictors of pain. This suggests that these variables have a meaningful relationship with pain and their inclusion in the model provides valuable information.
+
+The Akaike information criterion (AIC), which is used for model comparison with lower values indicating better model fit, was lower for the complex model (AIC = 533.395) compared to the simple model (AIC = 580.091). This further supports the conclusion that the complex model provides a better fit to the data.
+
+In conclusion, the inclusion of psychological and hormone measures in the model appears to have provided significant value in explaining the variance in pain. This suggests that these factors may play an important role in the experience of pain and should be considered in future research and clinical practice. However, it’s important to note that while these results are statistically significant, further research is needed to explore the causal relationships and potential mechanisms at play.
+
