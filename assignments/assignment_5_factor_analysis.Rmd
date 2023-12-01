@@ -9,6 +9,11 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(psych)
+theme_set(theme_light())
 ```
 
 # Introduction
@@ -103,14 +108,86 @@ Talk about the limitations of your study and findings.
 Read the Animal Rights Scale (ARQ) dataset from the 'data/' folder. Pay attention to the extension.
 
 ```{r}
-
+file.path <- "~/elte-ppk-r-course-r_data_analysis-23_24_1/data/assignment_5_dataset.csv"
+ARQ.data <- read.csv(file.path)
 ```
 
 ## EDA
 
 ```{r}
+#structure of data
+str(ARQ.data)
+
+#recoding variables as numerical or categorical
+all.ARQ <- ARQ.data %>%
+  mutate(across(ar1:ar28, as.numeric)) %>%
+  mutate(across(c("sex", "party"), as.factor)) %>%
+  mutate(liberal = as.numeric(liberal))
+str(all.ARQ)
+
+#Remove rows with missing values
+all.ARQ <- na.omit(all.ARQ)
+
+#inspecting data set
+describe(all.ARQ)
+
+#Summary statistics
+summary(all.ARQ)
+```
+##This shows that the sample consisted of a larger propotion of males than females.
+``` {r}
+# Distribution of sex
+ggplot(ARQ.data, aes(x = factor(sex))) +
+  geom_bar() +
+  labs(title = "Distribution of Sex", x = "Sex", y = "Frequency")
+```
+##Outliers were identified and treated using the IQR method.
+
+All outliers except for those in item ar18 were treated with the IQR method as it would result in a standard devition of zero which affects the analysis
+```{r}
+#summary statistics
+summary(all.ARQ$value)
+#Boxplot before handling outliers
+all.ARQ_long <- tidyr::gather(all.ARQ, key = "variable", value = "value", ar1:ar28)
+ggplot(all.ARQ_long, aes(x = variable, y = value)) +
+  geom_boxplot() +
+  labs(title = "Boxplot Before Handling Outliers")
+#Impute outliers with median for each item
+handle_outliers <- function(x) {
+  q1 <- quantile(x, 0.25, na.rm = TRUE)
+  q3 <- quantile(x, 0.75, na.rm = TRUE)
+  iqr <- q3 - q1
+  x[x < q1 - 1.5 * iqr] <- median(x, na.rm = TRUE)
+  x[x > q3 + 1.5 * iqr] <- median(x, na.rm = TRUE)
+  return(x)
+}
+ARQ.items <- c(paste0("ar", 1:28))
+all.ARQ <- all.ARQ %>%
+  mutate(across(all_of(ARQ.items[-18]), handle_outliers))
+#check structure
+str(all.ARQ)
+
+#Boxplot after handling outliers
+all.ARQ_long <- tidyr::gather(all.ARQ, key = "variable", value = "value", ar1:ar28)
+ggplot(all.ARQ_long, aes(x = variable, y = value)) +
+  geom_boxplot() +
+  labs(title = "Boxplot After Handling Outliers")
 
 ```
+##Boxplots of each ARQ item by party and gender
+```{r}
+# Relationship between party and each ARQ item
+ggplot(all.ARQ_long, aes(x = factor(party), y = value, fill = factor(party))) +
+  geom_boxplot() +
+  facet_wrap(~variable, scales = "free_y", ncol = 4) +
+  labs(title = "Boxplot of ARQ items by Party", x = "Party", y = "Value")
+# Relationship between gender and each ARQ item
+ggplot(all.ARQ_long, aes(x = factor(sex), y = value, fill = factor(sex))) +
+  geom_boxplot() +
+  facet_wrap(~variable, scales = "free_y", ncol = 4) +
+  labs(title = "Boxplot of ARQ items by Gender", x = "Gender", y = "Value")
+```
+
 
 ## Data manipulation
 
@@ -119,7 +196,9 @@ Recode the sex and party variables as factor type variables with the following l
   * party: 1 - democrat, 2 - republican, 3 - other, 4 - none
 
 ```{r}
+all.ARQ$sex <- factor(all.ARQ$sex, levels = c(1, 2), labels = c("male", "female"))
 
+all.ARQ$party <- factor(all.ARQ$party, levels = c(1, 2, 3, 4), labels = c("democrat", "republican", "other", "none"))
 ```
 
 # Creating a correlation matrix
@@ -127,13 +206,17 @@ Recode the sex and party variables as factor type variables with the following l
 __Note:__ Remember to only include the variables of the questionnaire that will be part of the factor analysis.
 
 ```{r}
+ARQ <- all.ARQ[, 1:28]
 
+EFA_model <- fa(ARQ)
+fa.diagram(EFA_model)
+EFA_model$loadings
 ```
 
 Create the correlation matrix.
 
 ```{r}
-
+arq.cor.matrix <- lowerCor(ARQ)
 ```
 
 ## Visualizing the correlation matrix
@@ -141,7 +224,7 @@ Create the correlation matrix.
 Create a visualization of the results of the correlation matrix.
 
 ```{r}
-
+corPlot(ARQ)
 ```
 
 ## Test for factorability
@@ -149,27 +232,31 @@ Create a visualization of the results of the correlation matrix.
 Calculate the KMO score.
 
 ```{r}
-
+KMO.score <- KMO(arq.cor.matrix)
+KMO.score
 ```
+KMO shows that our sample is good enough to run EFA
 
 ## Test for multivariate normality
 
 ```{r}
-
+mardia(ARQ)
 ```
 
 Test for skewness and kurtosis.
 
 ```{r}
-
+skew(ARQ)
+kurtosi(ARQ)
 ```
+Based on the multivariate skewness and kurtosis, the data does not deviate severely from normality. 
 
 ## Create scree plot
 
 Create a scree plot to help the decision on how many factors to include.
 
 ```{r}
-
+scree(arq.cor.matrix, factors = FALSE)
 ```
 
 ## Run the factor analysis
@@ -177,31 +264,44 @@ Create a scree plot to help the decision on how many factors to include.
 Run the factor analysis with the chosen number of factors.
 
 ```{r}
-
+EFA_eigen <- fa(ARQ, nfactors = 7)
+EFA_eigen
+EFA_original <- fa(ARQ, nfactors = 2)
+EFA_original
+EFA_theory <- fa(ARQ, nfactors = 5)
+EFA_theory
+EFA_eigen$BIC
+EFA_original$BIC
+EFA_theory$BIC
 ```
+Despite the BIC score for the original 2-factor to be lower than the 5-factor and 7-factor model, it does not seem to be a good fit (RMSEA > 0.05, TLI < 0.9, sig. chi sq). Consequently, the 5-factor and 7-factor model both have a good model fit (RMSEA < 0.05, TLI > 0.9) with insignificant chi-squares. Since the BIC score of the 5-factor model is lower than that of the 7-factor model and the model would have a better balance in level of complexity and goodness of fit. Therefore it was decided that the 5-factor model would be most suitable for subsequent analyses. The high correlations within the factors could indicate overlapping constructs which would be investigated further in the following sections.
 
 Sort the communality scores in decreasing order.
 
 ```{r}
-
+print.psych(EFA_theory, sort = "TRUE")
 ```
 
 Calculate the mean communality scores.
 
 ```{r}
-
+coms <- EFA_theory$communality
+round(coms, 2)
 ```
+Based on the low communality score (< 0.3), low factor loadings (< 0.3), and lack of theoretical relevance to the identified factors. The following item was omitted: ar16 & ar25
 
 Show the factor loadings for the chosen factor structure.
 
 ```{r}
-
+ARQ_subset <- ARQ[, -c(16, 25)]
+EFA_subset <- fa(ARQ_subset, nfactors = 5)
+print.psych(EFA_subset, sort = "TRUE")
 ```
 
 Visualize the factor structure.
 
 ```{r}
-
+fa.diagram(EFA_subset$loadings)
 ```
 
 ## Run linear regression
@@ -209,18 +309,59 @@ Visualize the factor structure.
 Calculate the factor scores.
 
 ```{r}
-
+fascores<-fa(ARQ, nfactors=5, scores = T)
+fascores = fascores$scores
+fascores
 ```
 
 Bind factor scores to the original dataset.
 
 ```{r}
+all.ARQ <- cbind(all.ARQ, fascores) 
+all.ARQ = all.ARQ %>% 
+  rename( factor_product = MR1, factor_animal_rights = MR2, factor_research = MR3, factor_life = MR4,factor_experimentation = MR5)
 
 ```
 
 Run the logistic regression.
 
 ```{r}
+glm(liberal ~ factor_product + factor_life + factor_research + factor_animal_rights + factor_experimentation, data = all.ARQ, family = gaussian)
 
+ggplot(all.ARQ, aes(x = factor_product, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
+ggplot(all.ARQ, aes(x = factor_life, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
+ggplot(all.ARQ, aes(x = factor_research, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
+ggplot(all.ARQ, aes(x = factor_animal_rights, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
+ggplot(all.ARQ, aes(x = factor_experimentation, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
 ```
 
