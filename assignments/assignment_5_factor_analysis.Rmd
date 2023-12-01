@@ -296,23 +296,6 @@ Show the factor loadings for the chosen factor structure.
 ARQ_subset <- ARQ[, -c(16, 25)]
 EFA_subset <- fa(ARQ_subset, nfactors = 5)
 print.psych(EFA_subset, sort = "TRUE")
-EFA_syn <-structure.sem(EFA_subset)
-EFA_syn
-Theory_syn_eq <- "
-Products: ar3, ar4, ar5, ar13, ar22, ar23, ar26
-Life: ar7, ar8, ar10, ar11, ar24, ar28
-Research: ar2, ar6, ar17, ar18, ar27
-Rights: ar1, ar9, ar15, ar20
-Experimentation: ar12, ar19, ar21"
-keys <- make.keys(nvars=28,
-                  list(Products = c(3, 4, 5, 13, 22, 23, 26),
-                       Life = c(7, 8, 10, 11, -24, -28),
-                       Research = c(2, 6, 17, 18, 27),
-                       Rights = c(1, 9, 15, 20), 
-                       Experimentation = c(12, -19, 11, -21)), 
-                  item.labels = colnames(ARQ))
-keys
-
 ```
 
 Visualize the factor structure.
@@ -326,18 +309,59 @@ fa.diagram(EFA_subset$loadings)
 Calculate the factor scores.
 
 ```{r}
-
+fascores<-fa(ARQ, nfactors=5, scores = T)
+fascores = fascores$scores
+fascores
 ```
 
 Bind factor scores to the original dataset.
 
 ```{r}
+all.ARQ <- cbind(all.ARQ, fascores) 
+all.ARQ = all.ARQ %>% 
+  rename( factor_product = MR1, factor_animal_rights = MR2, factor_research = MR3, factor_life = MR4,factor_experimentation = MR5)
 
 ```
 
 Run the logistic regression.
 
 ```{r}
+glm(liberal ~ factor_product + factor_life + factor_research + factor_animal_rights + factor_experimentation, data = all.ARQ, family = gaussian)
 
+ggplot(all.ARQ, aes(x = factor_product, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
+ggplot(all.ARQ, aes(x = factor_life, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
+ggplot(all.ARQ, aes(x = factor_research, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
+ggplot(all.ARQ, aes(x = factor_animal_rights, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
+ggplot(all.ARQ, aes(x = factor_experimentation, y = liberal)) +
+  geom_point() +
+  geom_smooth(
+    method = "glm",
+    se = FALSE,
+    method.args = list(family = gaussian)
+  )
 ```
 
