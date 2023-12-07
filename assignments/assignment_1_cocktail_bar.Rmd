@@ -45,7 +45,7 @@ The ingredients are currently in a single cell for each cocktail. It would be be
 
 ```{r}
 coctail_dataset = tidyr::separate_rows(coctail_dataset, "ingredients", sep="<br/>|or\\s") 
-coctail_dataset$ingredients<-gsub(".*oz\\s|.*drops\\s|.*dashes\\s|\"|.*dash\\s|.*drop\\s|.*bsp\\s|\\s*\\([^\\)]+\\)|.*proof\\s|\\s+$","",as.character(coctail_dataset$ingredients))
+coctail_dataset$ingredients<-gsub(".*oz\\s|.*drops\\s|.*dashes\\s|\"|.*dash\\s|.*drop\\s|.*bsp\\s|\\s*\\([^\\)]+\\)|.*proof\\s|\\s+$","",coctail_dataset$ingredients)
 coctail_dataset$ingredients <- tolower(coctail_dataset$ingredients)
 coctail_dataset
 ```
@@ -56,7 +56,6 @@ Before opening the bar, you need to find a reliable supplier that has all the in
 
 ```{r}
 ingredients_dup<-sort(coctail_dataset$ingredients)
-ingredients_dup
 ingredients_list<- ingredients_dup[!duplicated(ingredients_dup)]
 ingredients_list
 ```
@@ -66,8 +65,8 @@ ingredients_list
 How many different ingredients you will need?
 
 ```{r}
-number_of_ingredients = length(unique(ingredients_list))
-number_of_ingredients
+number_of_ingredient_types = length(unique(ingredients_list))
+number_of_ingredient_types
 
 ```
 
@@ -79,16 +78,29 @@ What are the 10 most frequently used ingredients? If there are ties, you can lis
 
 sort(table(coctail_dataset$ingredients), decreasing = TRUE)[1:15] 
 
-
 ```
+
+As it can be seen in the table above, top 15 ingredients are lemon juice (14 times), simple syrup (14 times), gin (13 times), angostura bitters (12 times), lime juice (12 times), sweet vermouth (12 times), saline solution (10 times), water (10 times), rye (9 times), cognac (6 times), luxardo maraschino (6 times), bourbon (5 times), clarified lime juice (5 times), cointreau (5 times) and egg white (5 times). 
 
 ## 6. Which cocktail(s) has/have the most ingredients?
 
 Count the number of ingredients and filter all the cocktails that has that many.
 
 ```{r}
+coctail_ingredients = coctail_dataset %>%  
+  count(name, ingredients)
+
+grouped_ingredients =coctail_ingredients %>%           
+  group_by(name) %>% 
+  summarise(n = n())
+
+sorted_grouped_ingredients = grouped_ingredients %>%  arrange(desc(n))
+
+sorted_grouped_ingredients
 
 ```
+
+As it can be seen in the table above, Carbonated Negroni has the most ingredients by having 7 different ingredients. 
 
 ## 7. How many ingredients appear in only one cocktail (rare ingredient)?
 
