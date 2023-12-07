@@ -107,13 +107,20 @@ As it can be seen in the table above, Carbonated Negroni has the most ingredient
 Count all cocktails with only one ingredient, and
 
 ```{r}
+rare_ingredients <- ingredients_dup[ave(ingredients_dup, ingredients_dup, FUN = length) == 1]
 
+rare_ingredients
+
+length(rare_ingredients)
 ```
 
 ## 8. Which cocktail has an ingredient that is only used in one cocktail?
 
 ```{r}
+rare_coctail_dataset <- filter(coctail_dataset,
+                       coctail_dataset$ingredients %in% rare_ingredients)
 
+rare_coctail_dataset %>% select(name, ingredients) %>% print(n = Inf) 
 ```
 
 ## 9. What are the cocktails without rare ingredients?
