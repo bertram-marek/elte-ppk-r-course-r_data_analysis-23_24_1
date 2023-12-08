@@ -95,9 +95,7 @@ grouped_ingredients =coctail_ingredients %>%
   summarise(n = n())
 
 sorted_grouped_ingredients = grouped_ingredients %>%  arrange(desc(n))
-
 sorted_grouped_ingredients
-
 ```
 
 As it can be seen in the table above, Carbonated Negroni has the most ingredients by having 7 different ingredients. 
@@ -108,10 +106,7 @@ Count all cocktails with only one ingredient, and
 
 ```{r}
 rare_ingredients <- ingredients_dup[ave(ingredients_dup, ingredients_dup, FUN = length) == 1]
-
 rare_ingredients
-
-length(rare_ingredients)
 ```
 
 ## 8. Which cocktail has an ingredient that is only used in one cocktail?
@@ -120,13 +115,21 @@ length(rare_ingredients)
 rare_coctail_dataset <- filter(coctail_dataset,
                        coctail_dataset$ingredients %in% rare_ingredients)
 
-rare_coctail_dataset %>% select(name, ingredients) %>% print(n = Inf) 
+rare_coctail_names_dup <-rare_coctail_dataset %>% select(name, ingredients)
+rare_coctail_names <- rare_coctail_dataset[!duplicated(rare_coctail_names_dup$name), ]
+rare_coctail_names
 ```
 
 ## 9. What are the cocktails without rare ingredients?
 
 ```{r}
-  
+not_rare_coctail_dataset<- filter(coctail_dataset,
+                       !(coctail_dataset$name %in% rare_coctail_names$name))
+
+not_rare_coctail_names_dup <-not_rare_coctail_dataset %>% select(name)
+
+not_rare_coctail_names <- not_rare_coctail_dataset[!duplicated(not_rare_coctail_names_dup$name), ]
+not_rare_coctail_names$name
 ```
 
 ## 10. Create a cheat sheet for the bartender!
