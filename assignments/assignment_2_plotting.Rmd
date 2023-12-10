@@ -24,6 +24,8 @@ library(readr)
 library(dplyr)
 library(ggplot2)
 library(viridis)
+library(scales)
+library(RColorBrewer)
 ```
 
 ## Task 1: Climbing expeditions
@@ -71,7 +73,27 @@ Notes:
 -   The line size is 1.2, the colors are from the brewer "Dark2" palette. The theme is set to minimal.
 
 ```{r}
+phd_dataset = read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-19/phd_by_field.csv")
+phd_dataset$broad_field <- factor(phd_dataset$broad_field)
+phd_dataset$year <- factor(phd_dataset$year)
 
+phd_dataset <- phd_dataset %>% 
+  filter(!n_phds %in% c(NA))
+
+phd_dataset_2 <- phd_dataset  %>% 
+  group_by(broad_field,year) %>% 
+  summarize(sum_n_phds=sum(n_phds))
+
+
+ggplot(phd_dataset_2, aes(x=year, y=sum_n_phds, group=broad_field, color=broad_field))+ 
+       scale_x_discrete(breaks = pretty_breaks(n=6)) +
+       scale_y_continuous(labels = comma_format()) +
+       labs(x = "", y="", title = "Number of awarded Ph.D.-s in the US by year", color= "Broad field")+ 
+       theme_minimal() +
+       geom_line(aes(color=broad_field), size = 1.2) +
+       scale_color_brewer(palette = "Dark2")
+       #theme(panel.grid.minor.x = element_line(size = 5, linetype = 2 ))
+ 
 ```
 
 ## Task 3: Commute in the US
