@@ -26,6 +26,7 @@ library(ggplot2)
 library(viridis)
 library(scales)
 library(RColorBrewer)
+library(ggrepel)
 ```
 
 ## Task 1: Climbing expeditions
@@ -93,7 +94,6 @@ ggplot(phd_dataset_2, aes(x=year, y=sum_n_phds, group=broad_field, color=broad_f
        geom_line(aes(color=broad_field), size = 1.2) +
        scale_color_brewer(palette = "Dark2")
        #theme(panel.grid.minor.x = element_line(size = 5, linetype = 2 ))
- 
 ```
 
 ## Task 3: Commute in the US
@@ -107,5 +107,23 @@ Notes:
 -   The point size is 2, . The theme is set to light.
 
 ```{r}
+commute_dataset = read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-11-05/commute.csv")
+commute_dataset$mode <- factor(commute_dataset$mode)
 
+commute_dataset_sum  <- commute_dataset  %>% 
+                        group_by(state_abb, state_region, mode) %>% 
+                        summarize(sum_n_commute=sum(n))
+
+bike_data <- commute_dataset_sum %>% filter(mode == "Bike")
+walk_data <- commute_dataset_sum %>% filter(mode == "Walk")
+
+commute_dataset_final <- inner_join(bike_data, walk_data, by = c("state_abb", "state_region") , suffix = c("_Bike", "_Walk"))
+
+ggplot(commute_dataset_final, aes(x = sum_n_commute_Walk, y = sum_n_commute_Bike, color = state_region, label = state_abb)) +     
+            scale_x_log10(labels = comma_format()) + 
+            scale_y_log10(labels = comma_format(), limits = c(100, NA)) +
+            geom_text_repel(size = 3, color = "Black",  max.overlaps =4) +
+            geom_point(size=2) + 
+            labs(x = "Number of ppl walking to work (log N)", y = "Number of ppl biking to work (log N)", color = "State Region") +
+            theme_light()
 ```
