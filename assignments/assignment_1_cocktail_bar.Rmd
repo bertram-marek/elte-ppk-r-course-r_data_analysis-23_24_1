@@ -106,7 +106,7 @@ Count all cocktails with only one ingredient, and
 
 ```{r}
 rare_ingredients <- ingredients_dup[ave(ingredients_dup, ingredients_dup, FUN = length) == 1]
-rare_ingredients
+length(rare_ingredients)
 ```
 
 ## 8. Which cocktail has an ingredient that is only used in one cocktail?
@@ -117,7 +117,7 @@ rare_coctail_dataset <- filter(coctail_dataset,
 
 rare_coctail_names_dup <-rare_coctail_dataset %>% select(name, ingredients)
 rare_coctail_names <- rare_coctail_dataset[!duplicated(rare_coctail_names_dup$name), ]
-rare_coctail_names
+rare_coctail_names %>% select(name)
 ```
 
 ## 9. What are the cocktails without rare ingredients?
@@ -145,7 +145,17 @@ tribble(~name, ~Lime, ~`White rum`, ~`Cane sugar`, ~`Coca-cola`, ~Mint, ~Soda,
 ```
 
 ```{r}
+coctails_matrix_dataset <- select(coctail_dataset, name, ingredients)
+coctails_matrix_dataset <- coctails_matrix_dataset %>%
+    group_by(name, ingredients) %>%
+    summarise(n = n(), .groups = "drop") %>%
+    pivot_wider(names_from = ingredients, values_from = ingredients, values_fill = list(ingredients = ""), values_fn = list(ingredients = function(x) "X") 
+  )
 
+coctails_matrix_dataset <- subset(coctails_matrix_dataset, select = -c(n))
+coctails_matrix_dataset <- coctails_matrix_dataset[, c(1, order(names(coctails_matrix_dataset)[-1]) + 1)]
+
+coctails_matrix_dataset
 ```
 
 
