@@ -74,7 +74,7 @@ library(sjPlot)
 
 
 ```{r}
-data_raw <- read_excel("data/assignment_3_dataset.xlsx")
+data_raw <- read_excel("C:/Users/Cinti/Documents/elte-ppk-r-course-r_data_analysis-23_24_1/data/assignment_3_dataset.xlsx")
 ```
 
 ## Data and model diagnostics 
@@ -104,7 +104,6 @@ sum(duplicated(data_raw$ID))
 # missing values
 sum(is.na(data_raw))
 ```
-
 
 #### Correct coding errors
 
@@ -245,18 +244,7 @@ model_simple <-lm(pain ~ age + sex, data = data_clean)
 
 summary <- summary(model_simple)
 
-summary
-
-report_table <- data.frame(
-  Coefficient = rownames(summary$coefficients[, c("Estimate", "Std. Error")]),
-  Unstandardized_Coef = coefficients[, "Estimate"],
-  CI_lower = confint(model_simple)[, "2.5 %"],
-  CI_upper = confint(model_simple)[, "97.5 %"],
-  Standardized_Coef_B = lm.beta(model_simple)$standardized.coefficients,
-  p_value = summary$coefficients[, "Pr(>|t|)"]
-)
-
-report_table 
+tab_model(model_simple, show.std = TRUE, show.se = TRUE)
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
@@ -266,18 +254,7 @@ model_complex <-lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness, data 
 
 summary <- summary(model_complex)
 
-summary
-
-report_table <- data.frame(
-  Coefficient = rownames(summary$coefficients[, c("Estimate", "Std. Error")]),
-  Unstandardized_Coef = coefficients[, "Estimate"],
-  CI_lower = confint(model_complex)[, "2.5 %"],
-  CI_upper = confint(model_complex)[, "97.5 %"],
-  Standardized_Coef_B = lm.beta(model_complex)$standardized.coefficients,
-  p_value = summary$coefficients[, "Pr(>|t|)"]
-)
-
-report_table 
+tab_model(model_complex, show.std = TRUE, show.se = TRUE)
 
 # equation
 
@@ -296,4 +273,4 @@ anova(model_simple, model_complex)
 
 ## Discussion
 
-Based on the anova test, the two models significantly differ from each model. The smaller AIC for the more complex model indicates that it fits better the data. After the assumption checks only the psychological measures were included in the model.Importantly, age and the score of The Pain Catastrophizing Scale were significant predictors.
+Based on the anova test, the two models significantly differ from each model. The smaller AIC for the more complex model indicates that it fits better the data. After the assumption checks only the psychological measures were included in the model. Importantly, age and the score of The Pain Catastrophizing Scale were significant predictors.
