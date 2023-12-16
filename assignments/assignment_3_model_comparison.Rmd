@@ -63,6 +63,12 @@ Read the dataset used in this assignment. Pay attention to the extension of the 
 knitr::opts_chunk$set(echo = FALSE)
 library("httr")
 library("readxl")
+library(dplyr)
+library(ggplot2)
+library(broom)
+library(gridExtra)
+library(car)
+library(lmtest)
 ```
 
 ```{r}
@@ -71,7 +77,6 @@ get_url <- httr::GET(github_url)
 file_ext <- tempfile(fileext = ".xlsx")
 writeBin(httr::content(get_url, "raw"), file_ext)
 pain_data <- readxl::read_excel(file_ext)
-pain_data
 ```
 
 ## Data and model diagnostics 
@@ -81,7 +86,55 @@ pain_data
 Run an exploratory data analysis (EDA) to investigate the dataset.
 
 ```{r}
+pain_data$sex <- factor(pain_data$sex)
+str(pain_data)
 
+vars_NA <- c("pain", "sex", "age", "STAI_trait", "pain_cat", "cortisol_serum", "cortisol_saliva")
+
+for (variable in vars_NA) {
+  missing_count <- sum(is.na(pain_data[[variable]]) | pain_data[[variable]] == "" | pain_data[[variable]] == " ")
+  cat("Number of NA or blank values in", variable, ":", missing_count, "\n")
+}
+
+frequency_tables <- sapply(pain_data, summary)
+frequency_tables
+
+vars_outliers <- c("pain", "mindfulness")
+
+plot_pain <- ggplot(pain_data, aes(factor(pain))) + 
+             geom_bar()+
+             geom_text(stat = 'count', aes(label = after_stat(count)), vjust = -0.5, color = "black") +
+             theme_minimal() +
+             ggtitle(paste("Pain"))
+
+
+
+plot_pain
+
+vars_corr_coef_wpain <- c("STAI_trait", "cortisol_serum", "cortisol_saliva")
+
+for (variable in vars_corr_coef_wpain) {
+  corr_coef <- cor(pain_data[[variable]], pain_data$pain)
+  cat("Correlation between", variable, "and pain", corr_coef, "\n")
+}
+
+plot_cortisol_serum <- ggplot(pain_data, aes(x = cortisol_serum, y = pain)) +
+                              geom_point() +
+                              theme_minimal() +
+                              geom_smooth(method = "lm", formula = y ~ x, se = FALSE) + 
+                              ggtitle("Serum cortisol level vs Pain") +
+                              xlab("Serum cortisol level") +
+                              ylab("Pain")
+
+plot_cortisol_saliva <- ggplot(pain_data, aes(x = cortisol_saliva, y = pain)) +
+                        geom_point() +
+                        geom_smooth(method = "lm", formula = y ~ x, se = FALSE) + 
+                        theme_minimal() +
+                        ggtitle("Saliva cortisol level vs Pain") +
+                        xlab("Saliva cortisol level") +
+                        ylab("Pain")
+
+grid.arrange(plot_cortisol_serum, plot_cortisol_saliva, ncol = 2)
 ```
 
 #### Correct coding errors
@@ -89,7 +142,14 @@ Run an exploratory data analysis (EDA) to investigate the dataset.
 If you find values in the dataset during the EDA, that are not correct based on the provided descriptions of the variables of the dataset please correct them here.
 
 ```{r}
+levels(pain_data$sex)[levels(pain_data$sex) == "woman"] <- "female"
+pain_data_clean <- subset(pain_data, pain <= 10 & mindfulness <= 6)
 
+table(pain_data_clean$sex)
+nrow(pain_data)
+nrow(pain_data_clean)
+
+frequency_tables <- sapply(pain_data_clean, summary)
 ```
 
 
@@ -99,6 +159,11 @@ If you find values in the dataset during the EDA, that are not correct based on 
 In order to test the more complex model for outliers and to test the assumptions first build the model.
 
 ```{r}
+#k <- pain_data_clean_2 %>%
+ #               group_by(sex) %>%
+         #       summarize(mean(pain),
+          #            median(pain))
+
 
 ```
 
@@ -108,6 +173,18 @@ Check for outlier values in the model.
 
 ```{r}
 
+simple_model <- lm(pain ~ age + sex, data = pain_data_clean)
+
+cooks_dist_simple <- cooks.distance(simple_model)
+influential_simple <- cooks_dist_simple[(cooks_dist_simple > (4 / nrow(pain_data_clean)))]
+influential_simple
+
+
+complex_model <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum + cortisol_saliva, data = pain_data_clean)
+
+cooks_dist_complex <- cooks.distance(complex_model)
+influential_complex <- cooks_dist_complex[(cooks_dist_complex > (4 / nrow(pain_data_clean)))]
+influential_complex
 ```
 
 #### Checking assumptions
@@ -115,19 +192,26 @@ Check for outlier values in the model.
 Check the normality assumption.
 
 ```{r}
+residuals_simple <- resid(simple_model)
+shapiro.test(residuals_simple)
 
+residuals_complex <- resid(complex_model)
+shapiro.test(residuals_complex)
 ```
 
 Check the linearity assumption.
 
 ```{r}
+crPlots(simple_model,terms = ~ age )
 
+crPlots(complex_model, terms = ~  age +  STAI_trait + pain_cat + mindfulness + cortisol_serum + cortisol_saliva)
 ```
 
 Check the homoscedasticty assumption (homogeneity of variance).
 
 ```{r}
-
+bptest(simple_model)
+bptest(complex_model)
 ```
 
 Check the multicollinearity assumption.
@@ -139,7 +223,8 @@ https://statisticalhorizons.com/multicollinearity
 http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity-in-regression-analysis
 
 ```{r}
-
+vif(simple_model)
+vif(complex_model)
 ```
 
 ### Making decision based on model diagnostics
@@ -147,13 +232,15 @@ http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity
 If based on the assumption tests you decide to drop a predictor variable you should do that here. Create your updated model.
 
 ```{r}
-
+complex_model_updated <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum, data = pain_data_clean)
 ```
 
 #### Checking outliers of the updated model
 
 ```{r}
-
+cooks_dist_complex_updated <- cooks.distance(complex_model_updated)
+influential_complex_updated <- cooks_dist_complex_updated[(cooks_dist_complex_updated > (4 / nrow(pain_data_clean)))]
+influential_complex_updated
 ```
 
 #### Checking assumptions of the updated model
@@ -161,25 +248,26 @@ If based on the assumption tests you decide to drop a predictor variable you sho
 Normality assumption
 
 ```{r}
-
+residuals_complex <- resid(complex_model_updated)
+shapiro.test(residuals_complex)
 ```
 
 Linearity assumption
 
 ```{r}
-
+crPlots(complex_model_updated, terms = ~  age +  STAI_trait + pain_cat + mindfulness + cortisol_serum)
 ```
 
 Homoscedasticty assumption (homogeneity of variance)
 
 ```{r}
-
+bptest(complex_model_updated)
 ```
 
 Multicollinearity assumption
 
 ```{r}
-
+vif(complex_model_updated)
 ```
 
 ## Model comparison
