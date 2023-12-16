@@ -107,8 +107,6 @@ plot_pain <- ggplot(pain_data, aes(factor(pain))) +
              theme_minimal() +
              ggtitle(paste("Pain"))
 
-
-
 plot_pain
 
 vars_corr_coef_wpain <- c("STAI_trait", "cortisol_serum", "cortisol_saliva")
@@ -159,12 +157,8 @@ frequency_tables <- sapply(pain_data_clean, summary)
 In order to test the more complex model for outliers and to test the assumptions first build the model.
 
 ```{r}
-#k <- pain_data_clean_2 %>%
- #               group_by(sex) %>%
-         #       summarize(mean(pain),
-          #            median(pain))
-
-
+simple_model <- lm(pain ~ age + sex, data = pain_data_clean)
+complex_model <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum + cortisol_saliva, data = pain_data_clean)
 ```
 
 #### Checking for influential outliers
@@ -172,15 +166,9 @@ In order to test the more complex model for outliers and to test the assumptions
 Check for outlier values in the model.
 
 ```{r}
-
-simple_model <- lm(pain ~ age + sex, data = pain_data_clean)
-
 cooks_dist_simple <- cooks.distance(simple_model)
 influential_simple <- cooks_dist_simple[(cooks_dist_simple > (4 / nrow(pain_data_clean)))]
 influential_simple
-
-
-complex_model <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum + cortisol_saliva, data = pain_data_clean)
 
 cooks_dist_complex <- cooks.distance(complex_model)
 influential_complex <- cooks_dist_complex[(cooks_dist_complex > (4 / nrow(pain_data_clean)))]
@@ -275,18 +263,43 @@ vif(complex_model_updated)
 Create the simple model and get the results of the model that needs to be reported based on the What to report section.
 
 ```{r}
+simple_model_unstandardized <- tidy(simple_model, conf.int = TRUE)
 
+simple_model_standardized <- lm(scale(pain) ~ scale(age) + factor(sex), data = pain_data_clean)
+simplem_standardized_coefficients <- tidy(simple_model_standardized)$estimate[-1]
+simplem_final_table <- cbind(simple_model_unstandardized, Beta = c(NA,simplem_standardized_coefficients))
+
+print(simplem_final_table)
+simple_model_summary <- glance(simple_model)
+print(as.data.frame(simple_model_summary))
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
 
 ```{r}
+complex_model_unstandardized <- tidy(complex_model_updated, conf.int = TRUE)
 
+complex_model_standardized <- lm(scale(pain) ~ scale(age) + factor(sex) + scale(STAI_trait) + scale(pain_cat) + scale(mindfulness) + scale(cortisol_serum), data = pain_data_clean)
+complexm_standardized_coefficients <- tidy(complex_model_standardized)$estimate[-1]
+complexm_final_table <- cbind(complex_model_unstandardized, Beta = c(NA,complexm_standardized_coefficients))
+print(complexm_final_table)
+
+complex_model_summary <- glance(complex_model_updated)
+print(as.data.frame(complex_model_summary))
 ```
 
 Compare the two models.
 
-```{r}
+Simple model: $$ Pain = 8.31 - 0.08 Age + 0.13 Gender $$
 
+Complex model: $$ Pain = 1.94 - 0.03 Age + 0.32 Gender - 0.01 Stai + 0.08Cat - 0.14Mind + 0.54Cort  $$
+```{r}
+aic_simple_model <- AIC(simple_model)
+aic_complex_model_updated <- AIC(complex_model_updated)
+
+cat("AIC - Simple Model:", aic_simple_model, "\n")
+cat("AIC - Complex Model:", aic_complex_model_updated, "\n")
+lrt_result <- lrtest(simple_model, complex_model_updated)
+print(lrt_result)
 ```
 
