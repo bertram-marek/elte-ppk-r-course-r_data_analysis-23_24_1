@@ -71,60 +71,253 @@ In your discussion of the findings, briefly interpret the results of the above a
 Read the dataset used in this assignment. Pay attention to the extension of the datafile.
 
 ```{r}
-
+install.packages("foreign")
+library(foreign)
+url <- "https://raw.githubusercontent.com/viviennagy/elte-ppk-r-course-r_data_analysis-23_24_1/main/data/assignment_6_dataset.sav"
+data <- read.spss(url, to.data.frame = TRUE)
 ```
 
 ## EDA
 
 ```{r}
+summary(data)
+str(data)
+head(data)
 
+install.packages("psych")
+library(psych)
+describe(data)
 ```
 
 ## Clean the data
 
 ```{r}
+install.packages(dplyr)
+library(dplyr)
+data <- data %>%
+  mutate(Sex = ifelse(tolower(Sex) == "female", 2, 1))
 
+#Handling outliers
+boxplot(data$Fare)
+cleaned_Fare <- data$Fare[!data$Fare %in% boxplot.stats(data$Fare)$out]
+data$cleaned_Fare <- ifelse(data$Fare %in% cleaned_Fare, data$Fare, NA)
+boxplot(data$cleaned_Fare)
+
+boxplot(data$Age)
+cleaned_Age <- data$Age[!data$Age %in% boxplot.stats(data$Age)$out]
+data$cleaned_Age <- ifelse(data$Age %in% cleaned_Age, data$Age, NA)
+boxplot(data$cleaned_Age)
+
+#Handling missing values
+colSums(is.na(data)) #Counting missing values
+colSums(data=="")
+summary(data) #Checking the mean values
+
+data$cleaned_Age <- as.numeric(data$cleaned_Age)
+data$cleaned_Age[is.na(data$cleaned_Age)] <- 29.22 #Replacing missing values with mean values
+summary(data)
+
+data$c_Fare <- as.numeric(data$cleaned_Fare)
+data$c_Fare[is.na(data$cleaned_Fare)] <- 17.822 #Replacing missing values with mean values
+summary(data)
+
+data$Survived <- as.integer(data$Survived)
+data$Pclass <- as.integer(data$Pclass)
+data$Sex <- as.integer(data$Sex)
+data$Age <- as.integer(data$Age)
+data$SibSp <- as.integer(data$SibSp)
+data$Parch <- as.integer(data$Parch)
+
+unique(data$Cabin)
+data$Cabint <- ifelse(nchar(trimws(data$Cabin)) == 0, 0, 1) #0=they didn't get cabin/1=they did get cabin
 ```
 
 ## Creating a datatable for Sue, Kate, and Leonardo
 
 ```{r}
-
+titanic_data <- data[, c("Survived", "Pclass", "Sex", "SibSp", "Parch", "cleaned_Age", "c_Fare", "Cabint")]
 ```
 
 ## Building the null model
 
 ```{r}
-
+null_model <- glm(Survived ~ 1, family = binomial, data = titanic_data)
+summary(null_model)
 ```
 
 ## Building the model
 
 ```{r}
-
+log_model <- glm(Survived ~ ., family = binomial(link = "logit"), data = titanic_data)
+summary(log_model)
 ```
 
 # Check the assumptions
 
 ```{r}
+#VIF
+install.packages("car")
+library(car)
+t = vif(log_model)
+sort(t, decreasing=TRUE)
+#The values of VIF for all the variables are less than 5, we don't need to reject any variable
 
+#Cooks distance
+cooksd <- cooks.distance(log_model)
+plot(cooksd)
+#Based on the plot there are no multidimensional outliers 
+
+#Assumption of linearity between these predictors and the log-odds of the outcome variable
+probabilities <- predict(log_model, type = "response")
+probabilities
+
+library(dplyr)
+library(ggplot2)
+install.packages("tidyr")
+library(tidyr)
+
+mydata <- titanic_data %>%
+  dplyr::select_if(is.numeric) 
+head(mydata)
+
+mydata <- mydata %>%
+  mutate(logit = log(probabilities/(1-probabilities))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+ggplot(mydata, aes(logit, predictor.value))+
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") + 
+  theme_bw() + 
+  facet_wrap(~predictors, scales = "free_y")
 ```
 
 # Compare the models
 
 ```{r}
+anova(null_model, log_model, test = "Chisq")
+#The simpler model exhibits a residual deviance of 1186.66 with 890 degrees of freedom. In contrast, the more complex model shows lower deviance at 779.78 with 883 degrees of freedom. The significant difference between the two models (p < 2.2e-16) suggests that the second model significantly better fits the data.
 
+#AIC values
+AIC_null <- AIC(null_model)
+AIC_log <- AIC(log_model)
+print(AIC_null)
+print(AIC_log)
+
+if (AIC_null < AIC_log) {
+  print("The null model has a lower AIC value, indicating a significantly better fit of the model.")
+} else if (AIC_null > AIC_log) {
+  print("The more complex model has a lower AIC value, indicating a significantly better fit of the model.")
+} else {
+  print("Both models have similar AIC values.")
+}
+
+#McFadden's R-squared
+install.packages('pscl')
+library(pscl)
+pR2(log_model)['McFadden']
+
+#Accuracy of the model
+predictions <- predict(log_model, type = "response") #predicted values
+predictions
+predicted_classes <- ifelse(predictions >= 0.5, 1, 0)
+predicted_classes
+
+accuracy <- mean(predicted_classes == titanic_data$Survived)
+cat("Accuracy of the model:", accuracy, "\n")
+survived <- subset(titanic_data, Survived == 1)
+not_survived <- subset(titanic_data, Survived == 0)
+predictions_survived <- predict(log_model, newdata = survived, type = "response")
+predicted_classes_survived <- ifelse(predictions_survived >= 0.5, 1, 0)
+accuracy_survived <- mean(predicted_classes_survived == survived$Survived)
+cat("Accuracy for the survivor group", accuracy_survived, "\n")
+
+predictions_not_survived <- predict(log_model, newdata = not_survived, type = "response")
+predicted_classes_not_survived <- ifelse(predictions_not_survived >= 0.5, 1, 0)
+accuracy_not_survived <- mean(predicted_classes_not_survived == not_survived$Survived)
+cat("Accuracy for the non-survivors group :", accuracy_not_survived, "\n")
 ```
 
 # Calculate odds ratio and confidence interval
 
 ```{r}
-
+exp(cbind(Odds_Ratio = coef(log_model), confint(log_model)))
 ```
 
 # Report the results
 
 ```{r}
+#Calculating the predicted probability of survival
 
+#Sue's predicted probability of survival without Leo
+Sue_without_Leo <- data.frame(
+  Pclass = 3,  # 3rd class ticket
+  Sex = 2,     # Female
+  SibSp = 0,   # 0 spouse
+  Parch = 1,   # 1 child
+  cleaned_Age = 20,  # 20 years
+  c_Fare = 8,  # 8 pounds
+  Cabint = 0   # No cabin
+)
+Sue_probability_without_Leo <- predict(log_model, newdata = Sue_without_Leo, type = "response")
+Sue_probability_without_Leo
+#Based on the prediction Sue had approximately 68.7% chance of survival without Leo
+
+#Sue's predicted probability of survival with Leo
+Sue_with_Leo <- data.frame(
+  Pclass = 3,  # 3rd class ticket
+  Sex = 2,     # Female
+  SibSp = 1,   # 1 spouse
+  Parch = 1,   # 1 child
+  cleaned_Age = 20,  # 20 years
+  c_Fare = 8,  # 8 pounds
+  Cabint = 0   # No cabin
+)
+Sue_probability_with_Leo <- predict(log_model, newdata = Sue_with_Leo, type = "response")
+Sue_probability_with_Leo
+#Based on the prediction Sue had approximately 59.1% chance of survival without Leo
+
+#Kate's predicted probability of survival with Leo
+Kate_with_Leo <- data.frame(
+  Pclass = 3,  # 3rd class ticket
+  Sex = 2,     # Female
+  SibSp = 0,   # 0 sibling
+  Parch = 2,   # 2 parents
+  cleaned_Age = 4,  # 4 years
+  c_Fare = 8,  # 8 pounds
+  Cabint = 0   # No cabin
+)
+Kate_probability_with_Leo <- predict(log_model, newdata = Kate_with_Leo, type = "response")
+Kate_probability_with_Leo
+#Based on the prediction Kate had approximately 78,6% chance of survival with Leo
+
+#Kate's predicted probability of survival without Leo
+Kate_without_Leo <- data.frame(
+  Pclass = 3,  # 3rd class ticket
+  Sex = 2,     # Female
+  SibSp = 0,   # 0 sibling
+  Parch = 1,   # 1 parent
+  cleaned_Age = 4,  # 4 years
+  c_Fare = 8,  # 8 pounds
+  Cabint = 0   # No cabin
+)
+Kate_probability_without_Leo <- predict(log_model, newdata = Kate_without_Leo, type = "response")
+Kate_probability_without_Leo
+#Based on the prediction Kate had approximately 81,3% chance of survival without Leo
 ```
+In this logistic regression model predicting survival (0 = did not survive, 1 = survived), several predictors showed significant impact based on their p-values and odds ratios.
 
+Significant predictors with strong impact on survival:
+
+Sex: Women had approximately 17 times higher odds of survival compared to men (OR = 16.75, p < 0.001).
+Pclass (Passenger Class): Each unit increase in passenger class was associated with around 0.48 times lower odds of survival (OR = 0.48, p < 0.001).
+cleaned_Age: Older age slightly reduced the odds of survival (OR = 0.96, p < 0.001).
+Cabint: Passengers with a cabin had about 2 times higher odds of survival compared to those without (OR = 2.15, p < 0.01).
+SibSp (Number of Siblings/Spouses): For every additional sibling or spouse a passenger had aboard, their chances of survival decreased by approximately 34%. This predictor showed significance in predicting survival (p = 0.000394).
+c_Fare (Ticket Fare): This predictor also appeared significant in predicting survival (p = 0.0217). The Odds Ratio was 1.02, suggesting that a one-unit change in the fare correlates to about a 1.02 times likelihood of survival.
+
+Predictors that didn't seem to have a unique added value:
+Parch (Number of Parents/Children Aboard): This predictor had a p-value of approximately 0.15, indicating it might not be a significant factor in predicting survival in this model (OR = 0.84).
+These findings suggest that gender, passenger class, age, and cabin presence were influential factors affecting the odds of survival, while the number of parents/children aboard did not show a significant independent effect.
+
+According to the predictive analysis derived from the logistic regression model, the inclusion of Leonardo onboard in both Kate's and Sue's scenarios would have led to a reduction in their individual probabilities of survival.
+
+Regression equation: Y=−1.77−0.74×Pclass+2.82×Sex−0.42×SibSp−0.17×Parch−0.04×cleaned_Age+0.02×c_Fare+0.76×Cabint

@@ -31,6 +31,40 @@ The 2020-09-22 TidyTueday datasets are about climbing expeditions. From the thre
 -   The bar colors use the viridis palette and light theme.
 
 ```{r}
+url <- 'https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-22/expeditions.csv'
+
+expeditions <- readr::read_csv(url) 
+
+str(expeditions)
+
+library(dplyr)
+library(ggplot2)
+library(forcats)
+install.packages("viridis")
+library(viridis)
+
+top_peaks <- expeditions %>%
+  count(peak_name) %>%
+  top_n(15) %>%
+  arrange(desc(n)) %>%
+  pull(peak_name)
+print(top_peaks)
+
+season_counts <- filtered_data %>%
+  filter(peak_name %in% top_peaks) %>%
+  count(peak_name, season) %>%
+  arrange(peak_name, desc(n))
+
+print(season_counts, n = Inf)
+
+
+ggplot(season_counts, aes(x = n, y = fct_reorder(peak_name, n, .fun = sum), fill = season)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Number of expeditions", y = "", title = "The 15 most popular peaks stacked by season of expedition") +
+  scale_fill_viridis_d() +
+  theme_light() +
+  theme(axis.text.y = element_text(hjust = 0.5),
+        legend.position = "bottom")
 
 ```
 
@@ -46,6 +80,27 @@ Notes:
 
 ```{r}
 
+url2 <- 'https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-19/phd_by_field.csv'
+phd_by_field <- readr::read_csv(url2)
+str(phd_by_field)
+head(phd_by_field)
+
+phd_agg <- phd_by_field %>%
+  filter(!is.na(n_phds)) %>%
+  group_by(year, broad_field) %>%
+  summarise(total_phds = sum(n_phds), .groups = "drop")
+print(phd_agg)
+
+library(scales)
+
+ggplot(phd_agg, aes(x = year, y = total_phds, color = broad_field)) +
+  geom_line(size = 1.2) +
+  labs(x = "", y = "", color = "Broad Field", title="Number of awarded Ph.D.-s in the US by year") +
+  theme_minimal() +
+  scale_y_continuous(labels = comma_format()) +
+  scale_x_continuous(breaks = pretty_breaks()) +
+  scale_color_brewer(palette = "Dark2")
+
 ```
 
 ## Task 3: Commute in the US
@@ -59,5 +114,24 @@ Notes:
 -   The point size is 2, . The theme is set to light.
 
 ```{r}
+
+url3 <- 'https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-11-05/commute.csv'
+commute <- readr::read_csv(url3)
+head(commute)
+str(commute)
+
+allamonkent <- commute %>%
+  group_by(state_abb, state_region) %>%
+  summarise(gyalogolas = sum(n[mode == "Walk"]),
+            biciklizes = sum(n[mode == "Bike"]))
+print(allamonkent)
+
+ggplot(allamonkent, aes(x = gyalogolas, y = biciklizes, color = state_region)) +
+  geom_point(size=2) +
+  labs(x = "Number of ppl walking to work (log N)", y = "Number of ppl biking to work (log N)", color = "State region", title = "Number of people walking vs biking to work in each USA state") +
+  theme_light() +
+  geom_text(aes(label = state_abb), vjust = 1, hjust = -0.2) +
+  scale_x_log10(labels = comma_format()) +
+  scale_y_log10(labels = comma_format()) 
 
 ```
