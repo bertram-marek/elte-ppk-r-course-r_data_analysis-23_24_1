@@ -59,7 +59,10 @@ In your discussion of the findings, briefly interpret the results of the above a
 Read the dataset used in this assignment. Pay attention to the extension of the datafile.
 
 ```{r}
-
+install.packages("openxlsx")
+library(openxlsx)
+url_pain <- 'https://raw.githubusercontent.com/viviennagy/elte-ppk-r-course-r_data_analysis-23_24_1/main/data/assignment_3_dataset.xlsx'
+pain_dataset <- read.xlsx(url_pain) 
 ```
 
 ## Data and model diagnostics 
@@ -69,7 +72,22 @@ Read the dataset used in this assignment. Pay attention to the extension of the 
 Run an exploratory data analysis (EDA) to investigate the dataset.
 
 ```{r}
+str(pain_dataset)
+head(pain_dataset)
+summary(pain_dataset)
 
+install.packages("psych")
+library(psych)
+describe(pain_dataset)
+
+#Correlation matrix
+numeric_variable <- sapply(pain_dataset, is.numeric)
+numeric_data <- pain_dataset[, numeric_variable]
+
+install.packages("Hmisc")
+library(Hmisc)
+cor_matrix <- rcorr(as.matrix(numeric_data))
+print(cor_matrix)
 ```
 
 #### Correct coding errors
@@ -77,7 +95,60 @@ Run an exploratory data analysis (EDA) to investigate the dataset.
 If you find values in the dataset during the EDA, that are not correct based on the provided descriptions of the variables of the dataset please correct them here.
 
 ```{r}
+pain_dataset$age <- as.integer(pain_dataset$age)
 
+pain_dataset$sex_numeric[pain_dataset$sex == "male"] <- 1
+pain_dataset$sex_numeric[pain_dataset$sex == "female"] <- 2
+pain_dataset$sex_numeric[pain_dataset$sex == "woman"] <- 2
+
+boxplot(pain_dataset$age)
+cleaned_age <- pain_dataset$age[!pain_dataset$age %in% boxplot.stats(pain_dataset$age)$out]
+pain_dataset$cleaned_age <- ifelse(pain_dataset$age %in% cleaned_age, pain_dataset$age, NA)
+boxplot(pain_dataset$cleaned_age)
+
+boxplot(pain_dataset$pain)
+cleaned_pain <- pain_dataset$pain[!pain_dataset$pain %in% boxplot.stats(pain_dataset$pain)$out]
+pain_dataset$cleaned_pain <- ifelse(pain_dataset$pain %in% cleaned_pain, pain_dataset$pain, NA)
+boxplot(pain_dataset$cleaned_pain)
+
+boxplot(pain_dataset$STAI_trait)
+cleaned_STAI_trait <- pain_dataset$STAI_trait[!pain_dataset$STAI_trait %in% boxplot.stats(pain_dataset$STAI_trait)$out]
+pain_dataset$cleaned_STAI_trait <- ifelse(pain_dataset$STAI_trait %in% cleaned_STAI_trait, pain_dataset$STAI_trait, NA)
+boxplot(pain_dataset$cleaned_STAI_trait)
+
+boxplot(pain_dataset$pain_cat)
+cleaned_pain_cat <- pain_dataset$pain_cat[!pain_dataset$pain_cat %in% boxplot.stats(pain_dataset$pain_cat)$out]
+pain_dataset$cleaned_pain_cat <- ifelse(pain_dataset$pain_cat %in% cleaned_pain_cat, pain_dataset$pain_cat, NA)
+boxplot(pain_dataset$cleaned_pain_cat)
+
+boxplot(pain_dataset$cortisol_serum)
+boxplot(pain_dataset$cortisol_saliva)
+boxplot(pain_dataset$mindfulness)
+cleaned_mindfulness <- pain_dataset$mindfulness[!pain_dataset$mindfulness %in% boxplot.stats(pain_dataset$mindfulness)$out]
+pain_dataset$cleaned_mindfulness <- ifelse(pain_dataset$mindfulness %in% cleaned_mindfulness, pain_dataset$mindfulness, NA)
+boxplot(pain_dataset$cleaned_mindfulness)
+
+boxplot(pain_dataset$weight)
+pain_dataset <- subset(pain_dataset, weight >= 40)
+boxplot(pain_dataset$weight)
+boxplot(pain_dataset$IQ)
+pain_dataset <- subset(pain_dataset, IQ >= 75)
+boxplot(pain_dataset$IQ)
+
+boxplot(pain_dataset$household_income)
+
+sum(is.na(pain_dataset$cleaned_age))
+sum(is.na(pain_dataset$sex_numeric))
+sum(is.na(pain_dataset$cleaned_STAI_trait))
+sum(is.na(pain_dataset$cleaned_pain_cat))
+sum(is.na(pain_dataset$cleaned_mindfulness))
+sum(is.na(pain_dataset$cortisol_serum))
+pain_dataset <- na.omit(pain_dataset)
+
+View(pain_dataset)
+head(pain_dataset)
+str(pain_dataset)
+summary(pain_dataset)
 ```
 
 ### Model diagnostics
@@ -86,7 +157,8 @@ If you find values in the dataset during the EDA, that are not correct based on 
 In order to test the more complex model for outliers and to test the assumptions first build the model.
 
 ```{r}
-
+base_model <- lm(cleaned_pain ~ cleaned_age + sex_numeric + cleaned_STAI_trait + cleaned_pain_cat + cleaned_mindfulness + cortisol_serum + cortisol_saliva, data = pain_dataset)
+summary(base_model)
 ```
 
 #### Checking for influential outliers
@@ -94,7 +166,8 @@ In order to test the more complex model for outliers and to test the assumptions
 Check for outlier values in the model.
 
 ```{r}
-
+cooks_distance <- cooks.distance(base_model)
+plot(cooks_distance)
 ```
 
 #### Checking assumptions
@@ -102,19 +175,35 @@ Check for outlier values in the model.
 Check the normality assumption.
 
 ```{r}
+shapiro.test(pain_dataset$cleaned_age)
+shapiro.test(pain_dataset$cleaned_pain)
+shapiro.test(pain_dataset$cleaned_STAI_trait)
+shapiro.test(pain_dataset$cleaned_pain_cat)
+hist(pain_dataset$cleaned_pain_cat)
+shapiro.test(pain_dataset$cortisol_serum)
+shapiro.test(pain_dataset$cortisol_saliva)
+shapiro.test(pain_dataset$cleaned_mindfulness)
 
+residual_pain <- residuals(base_model)
+shapiro.test(residual_pain)
+hist(residual_pain, breaks=20)
 ```
 
 Check the linearity assumption.
 
 ```{r}
-
+plot(base_model, 1)
 ```
 
 Check the homoscedasticty assumption (homogeneity of variance).
 
 ```{r}
-
+fitted_values <- fitted(base_model)
+plot(fitted_values, residual_pain,
+     xlab = "Fitted Values",
+     ylab = "Residuals",
+     main = "Homoscedasticity")
+abline(h = 0, col = "pink")
 ```
 
 Check the multicollinearity assumption.
@@ -126,7 +215,12 @@ https://statisticalhorizons.com/multicollinearity
 http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity-in-regression-analysis
 
 ```{r}
-
+install.packages("car")
+library(car)
+vif(base_model)
+vif_values <- vif(base_model)
+barplot(vif_values, main = "VIF Values", horiz = TRUE, col = "#ee36b4")
+abline(v = 5, lwd = 3, lty = 2)
 ```
 
 ### Making decision based on model diagnostics
@@ -134,13 +228,16 @@ http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity
 If based on the assumption tests you decide to drop a predictor variable you should do that here. Create your updated model.
 
 ```{r}
-
+#Based on the VIF values, there is a collinearity between cortisol_serum & cortisol_saliva, so the linear model should exclude cortisol_saliva
+base_model2 <- lm(cleaned_pain ~ cleaned_age + sex_numeric + cleaned_STAI_trait + cleaned_pain_cat + cleaned_mindfulness + cortisol_serum, data = pain_dataset)
+summary(base_model2)
 ```
 
 #### Checking outliers of the updated model
 
 ```{r}
-
+cooks_distance <- cooks.distance(base_model2)
+plot(cooks_distance)
 ```
 
 #### Checking assumptions of the updated model
@@ -148,25 +245,35 @@ If based on the assumption tests you decide to drop a predictor variable you sho
 Normality assumption
 
 ```{r}
-
+residual_pain2 <- residuals(base_model2)
+shapiro.test(residual_pain2)
+hist(residual_pain2, breaks=20)
 ```
 
 Linearity assumption
 
 ```{r}
-
+plot(base_model2, 1)
 ```
 
 Homoscedasticty assumption (homogeneity of variance)
 
 ```{r}
-
+fitted_values2 <- fitted(base_model2)
+plot(fitted_values2, residual_pain2,
+     xlab = "Fitted Values",
+     ylab = "Residuals",
+     main = "Homoscedasticity")
+abline(h = 0, col = "pink")
 ```
 
 Multicollinearity assumption
 
 ```{r}
-
+vif(base_model2)
+vif_values2 <- vif(base_model2)
+barplot(vif_values2, main = "VIF Values", horiz = TRUE, col = "#ee36b4")
+abline(v = 5, lwd = 3, lty = 2)
 ```
 
 ## Model comparison
@@ -174,18 +281,63 @@ Multicollinearity assumption
 Create the simple model and get the results of the model that needs to be reported based on the What to report section.
 
 ```{r}
+simple_model <- lm(cleaned_pain ~ cleaned_age + sex_numeric, data=pain_dataset)
+summary(simple_model)
 
+AIC(simple_model)
+AIC
+adjr2_simple <- summary(simple_model)$adj.r.squared
+print(adjr2_simple)
+f_test_simple <- summary(simple_model)$fstatistic
+print(f_test_simple)
+coefficients_simple <- data.frame(Unstd_Coefficients = coef(simple_model), `95% CI` = confint(simple_model))
+coefficients_simple
+std_coefs_simple <- summary(simple_model)$coefficients[, "Std. Error"]
+std_coefs_simple
+
+#The model test statistics reveal an adjusted R2 of 0.0602, explaining around 6.02% of the variability in the dependent variable. The F-statistic (F = 5.548, p = 0.0048) indicates statistical significance for the model as a whole, suggesting a collective impact of predictors. Among the predictors, only "cleaned_age" (p = 0.00156) demonstrates significance.
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
 
 ```{r}
+complex_model <- lm(cleaned_pain ~ cleaned_age + sex_numeric + cleaned_STAI_trait + cleaned_pain_cat + cleaned_mindfulness + cortisol_serum, data = pain_dataset)
+summary(complex_model)
 
+complex_model$coefficients
+
+AIC(complex_model)
+AIC
+adjr2_complex <- summary(complex_model)$adj.r.squared
+print(adjr2_complex)
+f_test_complex <- summary(complex_model)$fstatistic
+coefficients_complex <- data.frame(Unstd_Coefficients = coef(complex_model), `95% CI` = confint(complex_model))
+coefficients_complex
+std_coefs_complex <- summary(complex_model)$coefficients[, "Std. Error"]
+std_coefs_complex
+
+#The model test statistics indicate an adjusted R2 of 0.2444, explaining approximately 24.44% of the variability in the dependent variable. The F-statistic (F = 8.654, p < 0.001) is significant, suggesting that the predictors collectively have a significant impact. Among the predictors, only "cleaned_pain_cat" (p = 0.0413) and "cortisol_serum" (p < 0.001) are statistically significant. The regression equation based on this model is: cleaned_pain=2.88−0.03×cleaned_age−0.36×sex_numeric−0.01×cleaned_STAI_trait+0.06×cleaned_pain_cat−0.13×cleaned_mindfulness+0.56×cortisol_serum.
 ```
 
 Compare the two models.
 
 ```{r}
+model_comparison <- data.frame(
+    Model = c("Simple Model", "Complex Model"),
+    Adjusted_R_squared = c(summary(simple_model)$adj.r.squared, summary(complex_model)$adj.r.squared),
+    F_statistic = c(summary(simple_model)$fstatistic[1], summary(complex_model)$fstatistic[1]),
+    df_model = c(summary(simple_model)$fstatistic[2], summary(complex_model)$fstatistic[2]),
+    df_residuals = c(summary(simple_model)$fstatistic[3], summary(complex_model)$fstatistic[3]),
+    AIC = c(AIC(simple_model), AIC(complex_model))
+)
 
+print(model_comparison)
+
+install.packages("lmtest")
+library(lmtest)
+lr_test <- anova(complex_model, simple_model)
+print(lr_test)
+
+#The likelihood ratio test (LR test) was performed to compare the simpler and more complex models. The difference in their residual sum of squares (RSS) was significant (F=9.53, p<0.001), suggesting that the more complex model, involving additional predictors, significantly improves the model fit compared to the simpler one. 
 ```
 
