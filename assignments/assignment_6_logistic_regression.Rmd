@@ -15,10 +15,10 @@ library(ggplot2)
 library(gridExtra)
 library(caret)
 library(car)
-library(haven)
-library(httr)
 library(lmtest)
 library(ResourceSelection)
+library(broom)
+library(knitr)
 ```
 
 # Background story
@@ -94,7 +94,6 @@ unlink(temp)
 ## EDA
 
 ```{r}
-
 vars_NA <- c("PassengerId", "Survived", "Pclass", "Name", "Sex",  "Age", "SibSp", "Parch", "Ticket", "Fare" ,"Cabin", "Embarked")
 
 for (variable in vars_NA) {
@@ -153,11 +152,6 @@ ggplot(titanic_data, aes(x = Age, color = Survived)) +
        y = "Density",
        color = "Survived")
 
-ggplot(titanic_data, aes(x = Survived, y = Age, fill = Survived)) +
-  geom_boxplot() +
-  labs(title = "Age Box Plot by Survived", x = "Survived", y = "Age") +
-  theme_minimal()
-
 summary(titanic_data$Fare)
 
 mean_data_fare <- titanic_data %>%
@@ -196,7 +190,6 @@ summary(titanic_data$Embarked)
 ## Clean the data
 
 ```{r}
-
 list_Pclass <- c(1, 2, 3)
 list_Sex <- c("female", "male")
 list_Survived <- c(0,1)
@@ -208,7 +201,6 @@ mean_values$mean_value <- apply(mean_values, 1, function(row) {
                           titanic_data$Sex == row["list2"] &
                           titanic_data$Survived == row["list3"]], na.rm = TRUE)
 })
-
 
 print(mean_values)
 
@@ -222,86 +214,87 @@ for (i in 1:nrow(titanic_data)) {
   }
 }
 
+summary(titanic_data$Age)
+titanic_data$Age = ifelse(titanic_data$Age < 10,  0,ifelse(titanic_data$Age < 28, 1, 2 ))
 titanic_data$Embarked[is.na(titanic_data$Embarked)|titanic_data$Embarked == ""] <- "S"
-
-titanic_data$female = ifelse(titanic_data$Sex=="female", 1, 0)
-titanic_data$embarked_s = ifelse(titanic_data$Embarked=="S", 1, 0)
+titanic_data$Female = ifelse(titanic_data$Sex=="female", 1, 0)
+titanic_data$Embarked_S = ifelse(titanic_data$Embarked=="S", 1, 0)
 titanic_data$Fare <- round(titanic_data$Fare)
+titanic_data$Fare <- ifelse(titanic_data$Fare == 8, 1, 0)
 titanic_data$Survived = factor(titanic_data$Survived)
 ```
 
 ## Creating a datatable for Sue, Kate, and Leonardo
 
 ```{r}
-titanic_data <- titanic_data %>% filter(Pclass == 3)
-titanic_data_model <- titanic_data %>% select(Survived, Parch, SibSp, female, Age)
+titanic_data_model <- titanic_data %>% select(Survived, Parch, SibSp, Female, Age,  Pclass, Fare, Embarked_S)
 
 set.seed(234)
-t= sample(1:nrow(titanic_data_model), 0.7*nrow(titanic_data_model))
+t= sample(1:nrow(titanic_data_model), 0.72*nrow(titanic_data_model))
 train = titanic_data_model[t,]
 test = titanic_data_model[-t,]
 
 
-model1<- glm(as.factor(Survived)~., family="binomial", data=train)
+logisticr_test_model <- glm(as.factor(Survived)~., family="binomial", data=train)
 
 
-train$score <- predict(model1, newdata = train, type="response")
+train$score <- predict(logisticr_test_model, newdata = train, type="response")
 
-train$prediction <- ifelse(train$score>0.5, 1, 0)
-Classification_train <- table(factor(train$prediction), factor(train$Survived))
+train$predicted <- ifelse(train$score>0.5, 1, 0)
+Classification_train <- table(factor(train$predicted), factor(train$Survived))
+Classification_train
 
-TP_train <- Classification_train[1,1]
-TN_train <- Classification_train[2,2]
+TN_train <- Classification_train[1,1]
+TP_train <- Classification_train[2,2]
 FP_train <- Classification_train[2,1]
 FN_train <- Classification_train[1,2]
 
 Accuracy_train <- (TP_train+TN_train)/(TP_train+TN_train+FP_train+FN_train)
 Accuracy_train
 
-test$score<-predict(model1, test, type = "response")
+test$score<-predict(logisticr_test_model, test, type = "response")
 head(test$score)
-
 test$predicted<-ifelse(test$score>0.5, 1, 0)
-test$predicted
-
-
 Classification_test <- table(factor(test$predicted), factor(test$Survived))
+Classification_test
 
-TP_test <- Classification_test[1,1]
-TN_test <- Classification_test[2,2]
+TN_test <- Classification_test[1,1]
+TP_test <- Classification_test[2,2]
 FP_test <- Classification_test[2,1]
 FN_test <- Classification_test[1,2]
-
-Accuracy_test <- (TP_test+TN_test)/(TP_test+TN_test+FP_test+FN_test)
-Accuracy_test
+Test_accuracy_result <- (TP_test+TN_test)/(TP_test+TN_test+FP_test+FN_test)
+Test_accuracy_result
+Accuracy_survived_test <- TP_test/(FN_test+TP_test)
+Accuracy_survived_test
+Accuracy_notsurvived_test <- TN_test/(TN_test+FP_test)
+Accuracy_notsurvived_test
 ```
 
 ## Building the null model
 
 ```{r}
-model_null<- glm(as.factor(Survived)~ 1, family="binomial", data=titanic_data_model)
+logistic_model_null<- glm(as.factor(Survived)~ 1, family="binomial", data=titanic_data_model)
 ```
 
 ## Building the model
 
 ```{r}
-model_final <- glm(as.factor(Survived) ~., family="binomial", data=titanic_data_model)
+logistic_model_final <- glm(as.factor(Survived) ~., family="binomial", data=titanic_data_model)
 ```
 
 # Check the assumptions
 
 ```{r}
 titanic_data_model
-crPlots(model_final, terms = ~  Parch + SibSp + female + Age)
+crPlots(logistic_model_final, terms = ~  Parch + SibSp + Female + Age + Pclass + Fare + Embarked_S)
 
 
-model <- lm(as.numeric(Survived)~., data=titanic_data_model)
-t = vif(model)
-sort(t, decreasing=TRUE)
+linear_model <- lm(as.numeric(Survived)~., data=titanic_data_model)
+vif(linear_model)
 
-residuals <- rstandard(model_final)
 
-# Plot residuals
+residuals <- rstandard(logistic_model_final)
+
 plot(residuals)
 abline(h = c(-3, 3), col = "red")
 ```
@@ -309,27 +302,83 @@ abline(h = c(-3, 3), col = "red")
 # Compare the models
 
 ```{r}
-aic_simple_model_null <- AIC(model_null)
-aic_complex_model_updated <- AIC(model_final)
-
-cat("AIC - Simple Model:", aic_simple_model_null, "\n")
-cat("AIC - Complex Model:", aic_complex_model_updated, "\n")
-lrt_result <- lrtest(model_null, model_final)
+aic_model_null <- AIC(logistic_model_null)
+aic_model_final <- AIC(logistic_model_final)
+cat("AIC - Simple Model:", aic_model_null, "\n")
+cat("AIC - Complex Model:", aic_model_final, "\n")
+lrt_result <- lrtest(logistic_model_final, logistic_model_null)
 print(lrt_result)
 ```
 
 # Calculate odds ratio and confidence interval
 
 ```{r}
-odds_ratios <- exp(coef(model_final))
+odds_ratios <- exp(coef(logistic_model_final))
 odds_ratios 
 
-confint(model_final, level = 0.95)
+confint(logistic_model_final, level = 0.95)
 ```
 
 # Report the results
 
 ```{r}
-summary(model_final)
+predicted_final_model<- ifelse(predict(logistic_model_final, type = "response") > 0.5, 1, 0)
+Confussion_final_model <- table(predicted_final_model, titanic_data_model$Survived)
+
+TN_finalm <- Confussion_final_model[1,1]
+TP_finalm <- Confussion_final_model[2,2]
+FP_finalm <- Confussion_final_model[2,1]
+FN_finalm <- Confussion_final_model[1,2]
+Finalm_accuracy_result <- (TP_finalm+TN_finalm)/(TP_finalm+TN_finalm+FP_finalm+FN_finalm)
+Finalm_accuracy_result
+Accuracy_survived_Finalm <- TP_finalm/(FN_test+TP_finalm)
+Accuracy_survived_Finalm
+Accuracy_notsurvived_Finalm <- TN_finalm/(TN_finalm+FN_finalm)
+Accuracy_notsurvived_Finalm
+
+
+logistic_model_final_summary <- summary(logistic_model_final)
+
+summary(logistic_model_final)
+
+coeff <- logistic_model_final_summary$coefficients
+regression_table <- data.frame(
+                    Logit_Coefficients = coeff[, 1],
+                    Odds_Ratios = exp(coeff[, 1]),
+                    CI_Lower = exp(coeff[, 1] - 1.96 * coeff[, 2]),
+                    CI_Upper = exp(coeff[, 1] + 1.96 * coeff[, 2]),
+                    P_Value = coeff[, 4])
+
+kable(regression_table, caption = "Titanic Dataset - Logistic Regression Results")
+
+
+summary_table <- data.frame(
+  mcfadden_R = 1 - (logistic_model_final$deviance / logistic_model_final$null.deviance),
+  AIC = AIC(logistic_model_final),
+  BIC = BIC(logistic_model_final))
+
+knitr::kable(summary_table, caption = "Logistic Regression Model - Summary Statistics", digits = 3)
+```
+
+Titanic Dataset - Logistic Regression Model
+
+ $$ Pain = 2.82 - 0.09 Parch - 0.34 SibSp + 2.77 Female -0.87 Age  - 1.21 Pclass -0.003 Fare - 0.32 Embarked_S  $$
+
+```{r}
+Kate_without_leonardo <- data.frame(Pclass = 3, Female = 1, Age = 0, SibSp = 0, Parch = 1, Fare = 1, Embarked_S = 1)
+prob_Kate_without_leonardo <- predict(logistic_model_final, Kate_without_leonardo, type = "response")
+prob_Kate_without_leonardo 
+
+Kate_with_leonardo <- data.frame(Pclass = 3, Female = 1, Age = 0, SibSp = 0, Parch = 2, Fare = 1, Embarked_S = 1)
+prob_Kate_with_leonardo <- predict(logistic_model_final, Kate_with_leonardo, type = "response")
+prob_Kate_with_leonardo
+
+Sue_without_leonardo <- data.frame(Pclass = 3, Female = 1, Age = 1, SibSp = 0, Parch = 1, Fare = 1, Embarked_S = 1)
+prob_Sue_without_leonardo <- predict(logistic_model_final, Sue_without_leonardo, type = "response")
+prob_Sue_without_leonardo
+
+Sue_with_leonardo <- data.frame(Pclass = 3, Female = 1, Age = 1, SibSp = 1, Parch = 1, Fare = 1, Embarked_S = 1)
+prob_Sue_with_leonardo <- predict(logistic_model_final, Sue_with_leonardo, type = "response")
+prob_Sue_with_leonardo
 ```
 
