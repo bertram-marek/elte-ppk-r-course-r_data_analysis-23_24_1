@@ -1,6 +1,6 @@
 ---
 title: "Assignment 5: Mixed models"
-author: "Marton Kovacs / Zoltan Kekecs"
+author: "Cintia Anna NAgy"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -9,6 +9,19 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(haven)
+library(lme4)
+library(partR2)
+library(broom.mixed)
+library(ggplot2)
+library(ggfortify)
+library(sjPlot)
+library(car)
+library(performance)
+library(see)
+library(patchwork)
+
+theme_set(theme_apa())
 ```
 
 # Introduction
@@ -58,7 +71,8 @@ Compare the model coefficients and the confidence intervals observed in this ass
 Read the datasets used in this assignment. Pay attention to the extensions of the datafiles.
 
 ```{r}
-
+data_A_raw <- read_sav("C:/Users/Cinti/Documents/elte-ppk-r-course-r_data_analysis-23_24_1/data/assignment_4_dataset_A.sav")
+data_B_raw <- read_sav("C:/Users/Cinti/Documents/elte-ppk-r-course-r_data_analysis-23_24_1/data/assignment_4_dataset_B.sav")
 ```
 
 ## Exploratory data analysis
@@ -66,7 +80,77 @@ Read the datasets used in this assignment. Pay attention to the extensions of th
 Run an exploratory data analysis (EDA) to investigate the dataset.
 
 ```{r}
+# check data types
+glimpse(data_A_raw)
+glimpse(data_B_raw)
+```
 
+```{r}
+# check the range of variables
+summary(data_A_raw)
+
+unique(data_A_raw$sex) # "Male" needs to be recoded into "male"
+
+summary(data_B_raw)
+
+unique(data_B_raw$sex)
+```
+
+```{r}
+# check duplicates
+sum(duplicated(data_A_raw))
+
+sum(duplicated(data_A_raw))
+```
+
+```{r}
+# missing values
+sum(is.na(data_A_raw))
+
+sum(is.na(data_B_raw))
+```
+
+Exploration of the relationship between the dependent and independent variables of interest
+
+```{r}
+# pain vs age
+ggplot(data_A_raw, aes(x = pain, y = age)) +
+  geom_point() +
+  geom_smooth(method = "lm", show.legend = FALSE)
+```
+
+```{r}
+# pain vs STAI
+ggplot(data_A_raw, aes(x = pain, y = STAI_trait)) +
+  geom_point() +
+  geom_smooth(method = "lm", show.legend = FALSE)
+```
+
+```{r}
+# pain vs pain catastrophizing
+ggplot(data_A_raw, aes(x = pain, y = pain_cat)) +
+  geom_point() +
+  geom_smooth(method = "lm", show.legend = FALSE)
+```
+
+```{r}
+# pain vs mindfulness
+ggplot(data_A_raw, aes(x = pain, y = mindfulness)) +
+  geom_point() +
+  geom_smooth(method = "lm", show.legend = FALSE)
+```
+
+```{r}
+# pain vs serum cortisol
+ggplot(data_A_raw, aes(x = pain, y = cortisol_serum)) +
+  geom_point() +
+  geom_smooth(method = "lm", show.legend = FALSE)
+```
+
+```{r}
+# pain vs sex
+ggplot(data_A_raw, aes(x = sex, y = age)) +
+  geom_boxplot()
 ```
 
 ## Correct coding errors
@@ -74,6 +158,60 @@ Run an exploratory data analysis (EDA) to investigate the dataset.
 If you find values in the dataset during the EDA, that are not correct based on the provided descriptions of the variables of the dataset please correct them here.
 
 ```{r}
+data_A_clean <- data_A_raw %>% 
+  mutate(sex = replace(sex, sex == "Male", "male"))
 
+data_B_clean <- data_B_raw
 ```
 
+## Models
+
+```{r}
+# model_A
+model_A <- lmer(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum + (1|hospital), data = data_A_clean)
+```
+
+```{r}
+# variance components for the fixed effects, the random intercept, and the residuals
+summary(model_A)
+
+tab_model(model_A, show.std = TRUE)
+
+# coefficients and confidence intervals of the coefficients
+tidy(model_A, effects = "fixed", conf.int = TRUE)
+
+# marginal R2
+marginal_R2 <- partR2(model_A, data = data_A_clean, R2_type = "marginal")
+
+# conditional R2
+conditional_R2 <- partR2(model_A, data = data_A_clean, R2_type = "conditional")
+```
+
+## Assumptions
+
+```{r}
+check_model(model_A)
+```
+
+## Prediction
+
+```{r}
+predictions_B <- predict(model_A, newdata = data_B_clean, re.form = ~(1|hospital), allow.new.levels = TRUE)
+residuals_B <- data_B_clean$pain - predictions_B
+RSS_B <- sum(residuals_B^2)
+TSS_B <- sum((data_B_clean$pain - mean(data_B_clean$pain))^2)
+
+R2_B <- 1 - (RSS_B / TSS_B)
+
+print(paste("R^2^ for Datafile B:", R2_B))
+print(paste("Marginal R^2^ for Datafile A:", marginal_R2$R2$estimate))
+print(paste("Conditional R^2^ for Datafile A:", conditional_R2$R2$estimate))
+```
+
+The performance of the model on the new data worked similar to its performance on the training data.
+
+## Discussion
+
+The linear regression equation from assignment_3: "y =  4.0635693528857 + age * -0.0679349024395266 + sex * 0.171024087416351 + STAI_trait * 0.0327455044732462 + pain_cat * 0.0948563305169271 + mindfulness * 1.77871630105313"
+
+The coefficients were more or less the same. The small differences can be accounted for the introduction of the random-effect.

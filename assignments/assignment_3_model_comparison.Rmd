@@ -1,8 +1,10 @@
 ---
-title: "Assignment 3: Model comparison"
-author: "Marton Kovacs/Zoltan Kekecs"
-output: html_document
-editor_options: 
+title: 'Assignment 3: Model comparison'
+author: "Cintia Anna Nagy"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
   chunk_output_type: console
 ---
 
@@ -22,7 +24,7 @@ Use the data file called ‘assignment_3_dataset’, from the 'data/' folder.
 
 You have collected data from 160 adults who were scheduled to undergo surgical extraction of the third mandibular molar (wisdom tooth surgery). Patients filled out a form in the waiting room before their surgery. The form contained questions about their sex, age, and weight, and psychological questionnaires assessing anxiety, pain catastrophizing, and mindfulness (see descriptions below). You also got blood samples and saliva samples from participants in the waiting room 5 minutes before their operations to determine the serum (a component of the blood) and salivary cortisol levels of participants. Participants were contacted 5 hours after the surgery to see how much pain they were experiencing. The __level of pain__ at that moment was recorded using a numerical rating scale using a __scale of 0 to 10__, where 0 means “no pain” and 10 means “worst pain I can imagine”. 
 
-__The State Trait Anxiety Inventory:__ T measures trait anxiety on a scale of 20 to 80, higher scores mean higher anxiety. Anxiety has been found in many studies to positively correlate with the level of pain experienced. This is __variable STAI_trait__ in the dataset.
+__The State Trait Anxiety Inventory:__ measures trait anxiety on a scale of 20 to 80, higher scores mean higher anxiety. Anxiety has been found in many studies to positively correlate with the level of pain experienced. This is __variable STAI_trait__ in the dataset.
 
 __The Pain Catastrophizing Scale__ measures the extent of pain catastrophizing, which is characterized by a tendency to magnify the threat value of a pain stimulus and to feel helpless in the presence of pain, as well as by a relative inability to prevent or inhibit pain-related thoughts in anticipation of, during, or following a painful event. The total score on this scale ranges from 0 to 52, higher scores mean higher catastrophizing. Pain catastrophizing is one of the well-established predictors of clinical pain. This is __variable pain_cat__ in the dataset.
 
@@ -59,7 +61,20 @@ In your discussion of the findings, briefly interpret the results of the above a
 Read the dataset used in this assignment. Pay attention to the extension of the datafile.
 
 ```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(broom)
+library(ggfortify)
+library(car)
+library(lm.beta)
+library(sjPlot)
+```
 
+
+```{r}
+data_raw <- read_excel("C:/Users/Cinti/Documents/elte-ppk-r-course-r_data_analysis-23_24_1/data/assignment_3_dataset.xlsx")
 ```
 
 ## Data and model diagnostics 
@@ -69,7 +84,25 @@ Read the dataset used in this assignment. Pay attention to the extension of the 
 Run an exploratory data analysis (EDA) to investigate the dataset.
 
 ```{r}
+# check data types
+glimpse(data_raw)
+```
 
+```{r}
+# check the range of variables
+summary(data_raw) # out of ranges scores in pain and MAAS
+
+unique(data_raw$sex) # "woman" needs to be recoded into "female"
+```
+
+```{r}
+# check duplicates
+sum(duplicated(data_raw$ID))
+```
+
+```{r}
+# missing values
+sum(is.na(data_raw))
 ```
 
 #### Correct coding errors
@@ -77,7 +110,14 @@ Run an exploratory data analysis (EDA) to investigate the dataset.
 If you find values in the dataset during the EDA, that are not correct based on the provided descriptions of the variables of the dataset please correct them here.
 
 ```{r}
+data_clean <- data_raw %>% 
+  mutate(pain = replace(pain, pain > 10, 10),
+         mindfulness = replace(mindfulness, mindfulness > 6, 6),
+         sex = replace(sex, sex == "woman", "female"))
 
+summary(data_clean)
+
+unique(data_clean$sex)
 ```
 
 ### Model diagnostics
@@ -86,7 +126,8 @@ If you find values in the dataset during the EDA, that are not correct based on 
 In order to test the more complex model for outliers and to test the assumptions first build the model.
 
 ```{r}
-
+model_complex <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum + cortisol_saliva, data = data_clean)
+summary(model_complex)
 ```
 
 #### Checking for influential outliers
@@ -94,7 +135,11 @@ In order to test the more complex model for outliers and to test the assumptions
 Check for outlier values in the model.
 
 ```{r}
-
+model_complex %>% 
+  augment() %>% 
+  select(pain, age, sex, STAI_trait, pain_cat, mindfulness, cortisol_serum, cortisol_saliva, .cooksd) %>% 
+  arrange(desc(.cooksd)) %>% 
+  head()
 ```
 
 #### Checking assumptions
@@ -102,19 +147,27 @@ Check for outlier values in the model.
 Check the normality assumption.
 
 ```{r}
+autoplot(model_complex, 2)
 
+residuals_model_complex <- enframe(residuals(model_complex))
+residuals_model_complex %>% 
+  ggplot() +
+  aes(x = value) +
+  geom_histogram()
 ```
 
 Check the linearity assumption.
 
 ```{r}
-
+residualPlots(model_complex)
 ```
 
 Check the homoscedasticty assumption (homogeneity of variance).
 
 ```{r}
+autoplot(model_complex, 3)
 
+durbinWatsonTest(model_complex)
 ```
 
 Check the multicollinearity assumption.
@@ -126,7 +179,7 @@ https://statisticalhorizons.com/multicollinearity
 http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity-in-regression-analysis
 
 ```{r}
-
+vif(model_complex)
 ```
 
 ### Making decision based on model diagnostics
@@ -134,13 +187,18 @@ http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity
 If based on the assumption tests you decide to drop a predictor variable you should do that here. Create your updated model.
 
 ```{r}
-
+model_updated <-lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness, data = data_clean)
+summary(model_updated)
 ```
 
 #### Checking outliers of the updated model
 
 ```{r}
-
+model_updated %>% 
+  augment() %>% 
+  select(pain, age, sex, STAI_trait, pain_cat, mindfulness, .cooksd) %>% 
+  arrange(desc(.cooksd)) %>% 
+  head()
 ```
 
 #### Checking assumptions of the updated model
@@ -148,25 +206,33 @@ If based on the assumption tests you decide to drop a predictor variable you sho
 Normality assumption
 
 ```{r}
+autoplot(model_updated, 2)
 
+residuals_model_updated <- enframe(residuals(model_updated))
+residuals_model_updated %>% 
+  ggplot() +
+  aes(x = value) +
+  geom_histogram()
 ```
 
 Linearity assumption
 
 ```{r}
-
+residualPlots(model_updated)
 ```
 
 Homoscedasticty assumption (homogeneity of variance)
 
 ```{r}
+autoplot(model_updated, 3)
 
+durbinWatsonTest(model_updated)
 ```
 
 Multicollinearity assumption
 
 ```{r}
-
+vif(model_updated)
 ```
 
 ## Model comparison
@@ -174,18 +240,37 @@ Multicollinearity assumption
 Create the simple model and get the results of the model that needs to be reported based on the What to report section.
 
 ```{r}
+model_simple <-lm(pain ~ age + sex, data = data_clean)
 
+summary <- summary(model_simple)
+
+tab_model(model_simple, show.std = TRUE, show.se = TRUE)
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
 
 ```{r}
+model_complex <-lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness, data = data_clean)
 
+summary <- summary(model_complex)
+
+tab_model(model_complex, show.std = TRUE, show.se = TRUE)
+
+# equation
+
+coeff <- summary$coefficients
+print(paste("y = ",{coeff[1]}, "+ age *", {coeff[2]}, "+ sex *", {coeff[3]}, "+ STAI_trait *", {coeff[4]}, "+ pain_cat *", {coeff[5]}, "+ mindfulness *", {coeff[7]})) 
 ```
 
 Compare the two models.
 
 ```{r}
+AIC(model_simple)
+AIC(model_complex)
 
+anova(model_simple, model_complex)
 ```
 
+## Discussion
+
+Based on the anova test, the two models significantly differ from each model. The smaller AIC for the more complex model indicates that it fits better the data. After the assumption checks only the psychological measures were included in the model. Importantly, age and the score of The Pain Catastrophizing Scale were significant predictors.
