@@ -69,6 +69,8 @@ library(broom)
 library(gridExtra)
 library(car)
 library(lmtest)
+library(broom)
+library(knitr)
 ```
 
 ```{r}
@@ -105,7 +107,8 @@ plot_pain <- ggplot(pain_data, aes(factor(pain))) +
              geom_bar()+
              geom_text(stat = 'count', aes(label = after_stat(count)), vjust = -0.5, color = "black") +
              theme_minimal() +
-             ggtitle(paste("Pain"))
+             ggtitle(paste("Count of Pain Levels"))+
+             xlab("Pain Level") 
 
 plot_pain
 
@@ -263,29 +266,77 @@ vif(complex_model_updated)
 Create the simple model and get the results of the model that needs to be reported based on the What to report section.
 
 ```{r}
-simple_model_unstandardized <- tidy(simple_model, conf.int = TRUE)
+simple_model_sum <- summary(simple_model)
+simple_model_unstandardized_sum <- tidy(simple_model)
 
-simple_model_standardized <- lm(scale(pain) ~ scale(age) + factor(sex), data = pain_data_clean)
-simplem_standardized_coefficients <- tidy(simple_model_standardized)$estimate[-1]
-simplem_final_table <- cbind(simple_model_unstandardized, Beta = c(NA,simplem_standardized_coefficients))
+data_standardized_simple <- pain_data_clean %>%
+  mutate(across(where(is.numeric), scale)) 
 
-print(simplem_final_table)
-simple_model_summary <- glance(simple_model)
-print(as.data.frame(simple_model_summary))
+simple_model_standardized <- lm(pain ~ age + sex, data = data_standardized_simple)
+
+simple_model_standardized_sum <- tidy(simple_model_standardized) %>%
+  rename(Beta_Coefficients = estimate)
+
+results_table_simple <- simple_model_unstandardized_sum %>%
+  select(term, estimate, std.error, statistic, p.value) %>%
+  left_join(simple_model_standardized_sum %>% select(term, Beta_Coefficients), by = "term") %>%
+  mutate(CI_Lower = estimate - qt(0.975, df = simple_model$df.residual, lower.tail = FALSE) * std.error,
+         CI_Upper = estimate + qt(0.975, df = simple_model$df.residual, lower.tail = FALSE) * std.error)
+
+knitr::kable(results_table_simple, caption = "Simple Model - Linear Regression Results", digits = 2)
+
+simplem_summary_table <- tibble(
+  R_Squared = simple_model_sum$r.squared,
+  Adj_R_Squared = simple_model_sum$adj.r.squared,
+  Sigma = simple_model_sum$sigma,
+  Statistic = simple_model_sum$fstatistic[1] ,
+  P_Value = pf(simple_model_sum$fstatistic[1], simple_model_sum$fstatistic[2], simple_model_sum$fstatistic[3], lower.tail = FALSE),
+  DF = simple_model_sum$df[2],
+  LogLik = as.numeric(logLik(simple_model)),
+  AIC = AIC(simple_model),
+  BIC = BIC(simple_model),
+  Deviance = simple_model$deviance,
+  DF_Residuals = simple_model$df.residual)
+
+knitr::kable(simplem_summary_table, caption = "Summary Statistics of Simple Linear Model", digits = 2)
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
 
 ```{r}
-complex_model_unstandardized <- tidy(complex_model_updated, conf.int = TRUE)
+complex_model_updated_sum <- summary(complex_model_updated)
+complex_model_update_unstandardized_sum <- tidy(complex_model_updated)
 
-complex_model_standardized <- lm(scale(pain) ~ scale(age) + factor(sex) + scale(STAI_trait) + scale(pain_cat) + scale(mindfulness) + scale(cortisol_serum), data = pain_data_clean)
-complexm_standardized_coefficients <- tidy(complex_model_standardized)$estimate[-1]
-complexm_final_table <- cbind(complex_model_unstandardized, Beta = c(NA,complexm_standardized_coefficients))
-print(complexm_final_table)
+data_standardized_complex <- pain_data_clean %>%
+  mutate(across(where(is.numeric), scale)) 
 
-complex_model_summary <- glance(complex_model_updated)
-print(as.data.frame(complex_model_summary))
+complex_model_standardized <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum , data = data_standardized_complex)
+
+complex_model_update_standardized_sum <- tidy(complex_model_standardized) %>%
+  rename(Beta_Coefficients = estimate)
+
+results_table <- complex_model_update_unstandardized_sum %>%
+  select(term, estimate, std.error, statistic, p.value) %>%
+  left_join(complex_model_update_standardized_sum %>% select(term, Beta_Coefficients), by = "term") %>%
+  mutate(CI_Lower = estimate - qt(0.975, df = complex_model_updated$df.residual, lower.tail = FALSE) * std.error,
+         CI_Upper = estimate + qt(0.975, df = complex_model_updated$df.residual, lower.tail = FALSE) * std.error)
+
+knitr::kable(results_table, caption = "Complex Model - Linear Regression Results", digits = 2)
+
+complexm_summary_table <- tibble(
+  R_Squared = complex_model_updated_sum$r.squared,
+  Adj_R_Squared = complex_model_updated_sum$adj.r.squared,
+  Sigma = complex_model_updated_sum$sigma,
+  Statistic = complex_model_updated_sum$fstatistic[1] ,
+  P_Value = pf(complex_model_updated_sum$fstatistic[1], complex_model_updated_sum$fstatistic[2], complex_model_updated_sum$fstatistic[3], lower.tail = FALSE),
+  DF = complex_model_updated_sum$df[2],
+  LogLik = as.numeric(logLik(complex_model_updated)),
+  AIC = AIC(complex_model_updated),
+  BIC = BIC(complex_model_updated),
+  Deviance = complex_model_updated$deviance,
+  DF_Residuals = complex_model_updated$df.residual)
+
+knitr::kable(complexm_summary_table, caption = "Summary Statistics of Complex Linear Model", digits = 2)
 ```
 
 Compare the two models.
