@@ -9,38 +9,49 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(dplyr)
+library(haven)
+library(ggplot2)
+library(gridExtra)
+library(caret)
+library(car)
+library(haven)
+library(httr)
+library(lmtest)
+library(ResourceSelection)
 ```
 
 # Background story
 
-In this lab assignment you are going to work with data related to the survival of passengers of the RMS Titanic. “The sinking of the Titanic is one of the most infamous shipwrecks in history. On April 15, 1912, during her maiden voyage, the widely considered “unsinkable” RMS Titanic sank after colliding with an iceberg. Unfortunately, there weren’t enough lifeboats for everyone onboard, resulting in the death of 1502 out of 2224 passengers and crew. While there was some element of luck involved in surviving, it seems some groups of people were more likely to survive than others.” (Quote from the Kaggle Titanic Challenge).
+In this lab assignment you are going to work with data related to the survival of passengers of the RMS Titanic. The sinking of the Titanic is one of the most infamous shipwrecks in history. On April 15, 1912, during her maiden voyage, the widely considered unsinkable RMS Titanic sank after colliding with an iceberg. Unfortunately, there werent enough lifeboats for everyone onboard, resulting in the death of 1502 out of 2224 passengers and crew. While there was some element of luck involved in surviving, it seems some groups of people were more likely to survive than others. (Quote from the Kaggle Titanic Challenge).
 
-For the sake of this assignment, let’s imagine that you are called as an expert to a court case: Kate, one of the survivors of the Titanic accident is suing her __father, Leonardo, for not accompanying Kate and her mother Sue on the trip__ and this way decreasing their chances of survival. The family planned to move to the US back in 1912. __They bought 3rd class tickets for the three of them for 8 British Pounds each. (They did not get cabins with their 3rd class tickets.)__ The plan was that they embark in Southampton and all of them got on board, but Leonardo got separated from them in the rush of passengers during boarding. Later it turned out that Leonardo deliberately got separated from them and got off the boat before it’s departure, to run away and live with his mistress. __Kate was only 4 at the time, and Sue was 20.__ During the accident __Kate got on one of the last lifeboats and was later rescued, but there was no room for Sue on the lifeboat, and she did not survive the disaster.__
+For the sake of this assignment, imagine that you are called as an expert to a court case: Kate, one of the survivors of the Titanic accident is suing her __father, Leonardo, for not accompanying Kate and her mother Sue on the trip__ and this way decreasing their chances of survival. The family planned to move to the US back in 1912. __They bought 3rd class tickets for the three of them for 8 British Pounds each. (They did not get cabins with their 3rd class tickets.)__ The plan was that they embark in Southampton and all of them got on board, but Leonardo got separated from them in the rush of passengers during boarding. Later it turned out that Leonardo deliberately got separated from them and got off the boat before its departure, to run away and live with his mistress. __Kate was only 4 at the time, and Sue was 20.__ During the accident __Kate got on one of the last lifeboats and was later rescued, but there was no room for Sue on the lifeboat, and she did not survive the disaster.__
 
-Now 20 years later Kate is suing her father for leaving them on the boat, because she thinks that this eventually led to Sue’s death, as the absence of Leonardo decreased their chances of survival.
+Now 20 years later Kate is suing her father for leaving them on the boat, because she thinks that this eventually led to Sues death, as the absence of Leonardo decreased their chances of survival.
 
 You are called in as an expert to this court case. Your task is to present a report about whether the presence of Leonardo statistically could have led to an improved chance of survival.
 
 # Dataset
 
-Use the data file called ‘assignment_4_dataset’, from the 'data/' folder.
+Use the data file called assignment_4_dataset, from the 'data/' folder.
 
 This is the training dataset of the Titanic dataset from the Kaggle Titanic Challenge (https://www.kaggle.com/c/titanic/overview), a prediction challenge for people who are just starting to learn about machine learning and other statistical prediction techniques. The following description is available for the dataset:
 
 ## Metadata
 
 ```{r echo = FALSE, warning = FALSE, message = FALSE}
-metadata <- readr::read_tsv(here::here("data/assignment_6_metadata.tsv"))
+metadata <- read_tsv("https://raw.githubusercontent.com/BelmaBumin/elte-ppk-r-course-r_data_analysis-23_24_1/main/data/assignment_6_metadata.tsv")
 
 metadata %>% 
   knitr::kable()
+
 ```
 
 # Task
 
 As usual, start with exploring your dataset. Do descriptive and exploratory analysis including visualization to understand the data and to see what type of data you are dealing with. 
 
-You should build a statistical model with which you can accurately estimate Kate’s and Sue’s chances of survival. First you should fit a statistical model (for example a logistic regression model) on the dataset, calculate the regression equation, and use that equation to compute the survival probability for Kate and Sue separately with and without having Leonardo on board the ship with them.
+You should build a statistical model with which you can accurately estimate Kates and Sues chances of survival. First you should fit a statistical model (for example a logistic regression model) on the dataset, calculate the regression equation, and use that equation to compute the survival probability for Kate and Sue separately with and without having Leonardo on board the ship with them.
 
 You can use whichever predictor you would like, but you need to build a model that is at least as accurate so that it can correctly predict the outcome value within the sample with at least 72% accuracy for BOTH those who actually survived and who actually died in the disaster. You need to check this in the Classification table. So it is not enough to have 72% overall correct percentage! In order to be able to reach this prediction accuracy you might have to use some special predictors or to do some feature engineering. A comprehensive exploratory analysis including the visualisation of the relationship of different predictors might help in this. Keep in mind that this is one of the most popular prediction challenges on Kaggle, so there is plenty of discussion and guides on the web about different models and features. If you get stuck, you can look these up to improve your prediction performance.
 
@@ -56,7 +67,7 @@ Also, report the statistics describing the coefficients of the predictors in a t
 
 Report which were the most influential predictors in the model, and which were the predictors which did not seem to have unique added value to the model.
 
-Write up the regression equation of the model in the form of 𝑌 = 𝑏0 + 𝑏1 ∗ X1 + 𝑏2 ∗ X2 +…+ bn * Xn, in which you use the actual regression coefficients of your models. (b0 stands for the intercept and b1, b2 … bn stand for the model coefficients for each of the predictors, and X1, X2, … Xn denote the predictors).
+Write up the regression equation of the model in the form of ..., in which you use the actual regression coefficients of your models. (b0 stands for the intercept and b1, b2  bn stand for the model coefficients for each of the predictors, and X1, X2, Xn denote the predictors).
 
 Finally, report the predicted probability of survival for Kate and Sue separately with and without having Leonardo on board the ship with them. (So you will have to estimate 4 probabilities in total, two for Kate and two for Sue). It is important that this is in the probability scale (since the jury does not know what logit means and how to interpret it).
 
@@ -71,60 +82,254 @@ In your discussion of the findings, briefly interpret the results of the above a
 Read the dataset used in this assignment. Pay attention to the extension of the datafile.
 
 ```{r}
+url <- "https://github.com/BelmaBumin/elte-ppk-r-course-r_data_analysis-23_24_1/raw/main/data/assignment_6_dataset.sav"  # Replace with your actual file URL
+temp <- tempfile()
+download.file(url, temp)
 
+titanic_data <- read_sav(temp)
+
+unlink(temp)
 ```
 
 ## EDA
 
 ```{r}
 
+vars_NA <- c("PassengerId", "Survived", "Pclass", "Name", "Sex",  "Age", "SibSp", "Parch", "Ticket", "Fare" ,"Cabin", "Embarked")
+
+for (variable in vars_NA) {
+  missing_count <- sum(is.na(titanic_data[[variable]]) | titanic_data[[variable]] == "" | titanic_data[[variable]] == " ")
+  cat("Number of NA or blank values in", variable, ":", missing_count, "\n")
+}
+
+table(titanic_data$Survived, titanic_data$Sex)
+summary(titanic_data$Survived)
+
+titanic_data$Survived <- factor(titanic_data$Survived)
+plot_survived_sex <- ggplot(titanic_data, aes(x = Sex, fill = Survived)) +
+  geom_bar(position = position_dodge()) +
+  theme_minimal() +
+  labs(x = "Sex", y = "Count", fill = "Survived") +
+  ggtitle("Survivors for Sex Groups")
+
+table(titanic_data$Survived, titanic_data$Pclass)
+plot_survived_Pclass <- ggplot(titanic_data, aes(x = Pclass, fill = Survived)) +
+  geom_bar(position = position_dodge()) +
+  theme_minimal() +
+  labs(x = "Passenger Class", y = "Count", fill = "Survived") +
+  ggtitle("Survivors for Passenger Classes")
+
+grid.arrange(plot_survived_sex, plot_survived_Pclass, ncol = 2)
+
+plot_survived_SibSp <- ggplot(titanic_data, aes(x = SibSp, fill = Survived)) +
+  geom_bar(position = position_dodge()) +
+  theme_minimal() +
+  labs(x = "Number of spouses/siblings", y = "Count", fill = "Survived") +
+  ggtitle("Survivors with spouses/siblings") 
+
+plot_survived_SibSp
+table(titanic_data$Survived, titanic_data$Parch)
+plot_survived_Parch <- ggplot(titanic_data, aes(x = Parch, fill = Survived)) +
+  geom_bar(position = position_dodge()) +
+  theme_minimal() +
+  labs(x = "Number of parents/children", y = "Count", fill = "Survived") +
+  ggtitle("Survivors with Number of parents/childrens") 
+
+plot_survived_Parch
+
+summary(titanic_data$Age)
+
+
+mean_data <- titanic_data %>%
+  group_by(Survived) %>%
+  summarise(mean_Age = mean(Age))
+
+ggplot(titanic_data, aes(x = Age, color = Survived)) +
+  geom_density() +
+  geom_vline(data = mean_data, aes(xintercept = mean_Age, color = Survived), linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Density Plot of Passengers' Age for Survival",
+       x = "Age",
+       y = "Density",
+       color = "Survived")
+
+ggplot(titanic_data, aes(x = Survived, y = Age, fill = Survived)) +
+  geom_boxplot() +
+  labs(title = "Age Box Plot by Survived", x = "Survived", y = "Age") +
+  theme_minimal()
+
+summary(titanic_data$Fare)
+
+mean_data_fare <- titanic_data %>%
+  group_by(Survived) %>%
+  summarise(mean_fare = mean(Fare))
+
+ggplot(titanic_data, aes(x = Fare, color = Survived)) +
+  geom_density() +
+  geom_vline(data = mean_data_fare, aes(xintercept = mean_fare, color = Survived), linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Density Plot of Fare for Survival",
+       x = "Fare",
+       y = "Density",
+       color = "Survived")
+
+
+density_estimate <- density(titanic_data$Fare)
+peak_density <- density_estimate$x[which.max(density_estimate$y)]
+print(peak_density)
+
+
+plot_survived_Embarked <- ggplot(titanic_data, aes(x = Embarked, fill = Survived)) +
+  geom_bar(position = position_dodge()) +
+  theme_minimal() +
+  labs(x = "Embarked", y = "Count", fill = "Survived") +
+  ggtitle("Survivors ") 
+
+plot_survived_Embarked
+
+summary(titanic_data$Embarked)
+
 ```
+
+
 
 ## Clean the data
 
 ```{r}
 
+list_Pclass <- c(1, 2, 3)
+list_Sex <- c("female", "male")
+list_Survived <- c(0,1)
+
+mean_values <- expand.grid(list1 = list_Pclass, list2 = list_Sex, list3 = list_Survived)
+
+mean_values$mean_value <- apply(mean_values, 1, function(row) {
+  mean(titanic_data$Age[titanic_data$Pclass == row["list1"] &
+                          titanic_data$Sex == row["list2"] &
+                          titanic_data$Survived == row["list3"]], na.rm = TRUE)
+})
+
+
+print(mean_values)
+
+for (i in 1:nrow(titanic_data)) {
+  if (is.na(titanic_data$Age[i])) {
+    mean_value <- mean_values$mean_value[
+      mean_values$list1== titanic_data$Pclass[i] &
+        mean_values$list2 == titanic_data$Sex[i] &
+        mean_values$list3 == titanic_data$Survived[i]]
+    titanic_data$Age[i] <- mean_value
+  }
+}
+
+titanic_data$Embarked[is.na(titanic_data$Embarked)|titanic_data$Embarked == ""] <- "S"
+
+titanic_data$female = ifelse(titanic_data$Sex=="female", 1, 0)
+titanic_data$embarked_s = ifelse(titanic_data$Embarked=="S", 1, 0)
+titanic_data$Fare <- round(titanic_data$Fare)
+titanic_data$Survived = factor(titanic_data$Survived)
 ```
 
 ## Creating a datatable for Sue, Kate, and Leonardo
 
 ```{r}
+titanic_data <- titanic_data %>% filter(Pclass == 3)
+titanic_data_model <- titanic_data %>% select(Survived, Parch, SibSp, female, Age)
 
+set.seed(234)
+t= sample(1:nrow(titanic_data_model), 0.7*nrow(titanic_data_model))
+train = titanic_data_model[t,]
+test = titanic_data_model[-t,]
+
+
+model1<- glm(as.factor(Survived)~., family="binomial", data=train)
+
+
+train$score <- predict(model1, newdata = train, type="response")
+
+train$prediction <- ifelse(train$score>0.5, 1, 0)
+Classification_train <- table(factor(train$prediction), factor(train$Survived))
+
+TP_train <- Classification_train[1,1]
+TN_train <- Classification_train[2,2]
+FP_train <- Classification_train[2,1]
+FN_train <- Classification_train[1,2]
+
+Accuracy_train <- (TP_train+TN_train)/(TP_train+TN_train+FP_train+FN_train)
+Accuracy_train
+
+test$score<-predict(model1, test, type = "response")
+head(test$score)
+
+test$predicted<-ifelse(test$score>0.5, 1, 0)
+test$predicted
+
+
+Classification_test <- table(factor(test$predicted), factor(test$Survived))
+
+TP_test <- Classification_test[1,1]
+TN_test <- Classification_test[2,2]
+FP_test <- Classification_test[2,1]
+FN_test <- Classification_test[1,2]
+
+Accuracy_test <- (TP_test+TN_test)/(TP_test+TN_test+FP_test+FN_test)
+Accuracy_test
 ```
 
 ## Building the null model
 
 ```{r}
-
+model_null<- glm(as.factor(Survived)~ 1, family="binomial", data=titanic_data_model)
 ```
 
 ## Building the model
 
 ```{r}
-
+model_final <- glm(as.factor(Survived) ~., family="binomial", data=titanic_data_model)
 ```
 
 # Check the assumptions
 
 ```{r}
+titanic_data_model
+crPlots(model_final, terms = ~  Parch + SibSp + female + Age)
 
+
+model <- lm(as.numeric(Survived)~., data=titanic_data_model)
+t = vif(model)
+sort(t, decreasing=TRUE)
+
+residuals <- rstandard(model_final)
+
+# Plot residuals
+plot(residuals)
+abline(h = c(-3, 3), col = "red")
 ```
 
 # Compare the models
 
 ```{r}
+aic_simple_model_null <- AIC(model_null)
+aic_complex_model_updated <- AIC(model_final)
 
+cat("AIC - Simple Model:", aic_simple_model_null, "\n")
+cat("AIC - Complex Model:", aic_complex_model_updated, "\n")
+lrt_result <- lrtest(model_null, model_final)
+print(lrt_result)
 ```
 
 # Calculate odds ratio and confidence interval
 
 ```{r}
+odds_ratios <- exp(coef(model_final))
+odds_ratios 
 
+confint(model_final, level = 0.95)
 ```
 
 # Report the results
 
 ```{r}
-
+summary(model_final)
 ```
 
