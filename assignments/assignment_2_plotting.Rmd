@@ -16,7 +16,7 @@ You will have to create 3 plots based on the datasets and instructions detailed 
 -   Data manipulation (e.g. dplyr, tidyr), and working with factors (forcats)
 -   Data visuzlization (ggplot2)
 
-```{r setup, include=FALSE}
+```{r}
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(tidytuesdayR)
@@ -30,7 +30,96 @@ The 2020-09-22 TidyTueday datasets are about climbing expeditions. From the thre
 -   The bars are ordered by the sum of all expeditions (use `fct_reorder()`).
 -   The bar colors use the viridis palette and light theme.
 
+
+
+
 ```{r}
+
+# 1. Load necessary libraries
+library(tidyverse)
+library(forcats)
+
+# 2. Load the dataset
+url <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-22/expeditions.csv"
+expeditions <- read.csv(url)
+
+# 3. Manipulate the data 
+expeditions_data <- expeditions %>%
+  group_by(peak_name, season) %>%
+  tally() %>%
+  group_by(peak_name) %>%
+  mutate(total = sum(n)) %>%
+  ungroup() %>%
+  mutate(peak_name = fct_lump(peak_name, n = 15, w = total)) %>%
+  filter(peak_name != "Other")
+
+# Sort peaks based on total number of expeditions
+sorted_peaks <- expeditions_data %>%
+  group_by(peak_name) %>%
+  summarise(total = sum(n)) %>%
+  arrange(total) %>%
+  pull(peak_name)
+
+# Set the levels of peak_id to match the desired order
+expeditions_data$peak_name <- factor(expeditions_data$peak_name, levels = sorted_peaks)
+
+# 4. Create the stacked bar chart with custom colors
+ggplot(expeditions_data, aes(x = peak_name, y = n, fill = season)) +
+  geom_bar(stat = "identity", position = "stack") +
+  coord_flip() +
+  labs(title = "The 15 most popular peaks stacked by season of expedition",
+       x = "",
+       y = "Number of expeditions") +
+  theme_minimal() +
+  theme(legend.position="bottom") +
+  scale_fill_manual(values = c("Autumn" = "#440154", 
+                               "Spring" = "#3B528C", 
+                               "Summer" = "#20908C", 
+                               "Unknown" = "#5CC862",
+                               "Winter" = "#FDE724"))
+```
+
+
+
+```{r}
+
+# 1. Load necessary libraries
+library(tidyverse)
+library(forcats)
+
+# 2. Load the dataset
+url <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-22/expeditions.csv"
+expeditions <- read.csv(url)
+
+# 3. Manipulate the data 
+expeditions_data <- expeditions %>%
+  group_by(peak_name, season) %>%
+  tally() %>%
+  group_by(peak_name) %>%
+  mutate(total = sum(n)) %>%
+  ungroup() %>%
+  mutate(peak_name = fct_lump(peak_name, n = 15, w = total)) %>%
+  filter(peak_name != "Other")
+
+# Order peaks by the sum of all expeditions using fct_reorder()
+expeditions_data$peak_name <- expeditions_data %>%
+  mutate(peak_name = fct_reorder(peak_name, n, .fun = sum)) %>%
+  pull(peak_name)
+
+# 4. Create the stacked bar chart with custom colors
+ggplot(expeditions_data, aes(x = peak_name, y = n, fill = season)) +
+  geom_bar(stat = "identity", position = "stack") +
+  coord_flip() +
+  labs(title = "The 15 most popular peaks stacked by season of expedition",
+       x = "",
+       y = "Number of expeditions") +
+  theme_minimal() +
+  theme(legend.position="bottom") +
+  scale_fill_manual(values = c("Autumn" = "#440154", 
+                               "Spring" = "#3B528C", 
+                               "Summer" = "#20908C", 
+                               "Unknown" = "#5CC862",
+                               "Winter" = "#FDE724"))
 
 ```
 
@@ -44,7 +133,33 @@ Notes:
 -   To make the x axis breaks pretty, use `scales::pretty_breaks()`, to make the y axis labels comma formatted, use `scales::comma_format()`.
 -   The line size is 1.2, the colors are from the brewer "Dark2" palette. The theme is set to minimal.
 
+
 ```{r}
+# Loading necessary libraries
+library(tidyverse)
+library(scales)
+
+# Load the dataset
+url <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-19/phd_by_field.csv"
+phd_by_field <- read.csv(url)
+
+# Aggregating the data
+
+phd_aggregated <- phd_by_field %>%
+  group_by(year, broad_field) %>%
+  summarise(total_phds = sum(n_phds, na.rm = TRUE))  # na.rm = TRUE removes NA values
+
+# Creating the plot
+ggplot(phd_aggregated, aes(x = year, y = total_phds, color = broad_field)) +
+  geom_line(size = 1.2) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_y_continuous(labels = scales::comma_format(), limits = c(0, 23000)) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(title = "Number of awarded Ph.D.-s in the US by year", 
+       y = "Number of Ph.D.-s", 
+       x = "Year") +
+  theme_minimal() +
+  theme(legend.position = "right")
 
 ```
 
@@ -59,5 +174,39 @@ Notes:
 -   The point size is 2, . The theme is set to light.
 
 ```{r}
+#install.packages(c("ggplot2", "scales", "dplyr"))
+library(ggplot2)
+library(scales)
+library(dplyr)
+```
+
+
+```{r}
+url <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-11-05/commute.csv"
+commute <- read_csv(url)
+
+# Aggregate the data by state, mode, and state_region
+agg_data <- commute %>%
+  filter(mode %in% c("Bike", "Walk")) %>%
+  group_by(state, state_abb, state_region, mode) %>%
+  summarise(total_n = sum(n, na.rm = TRUE)) %>%
+  spread(key = mode, value = total_n) %>%
+  ungroup()
+
+# Filter out rows with missing values in 'Walk' or 'Bike' columns
+agg_data_filtered <- agg_data %>%
+  filter(!is.na(Walk) & !is.na(Bike))
+
+# Plot the data
+ggplot(agg_data, aes(x=Walk, y=Bike, color=state_region)) +
+  geom_point(size=2) +
+  geom_text(aes(label=state_abb), vjust=1.5, hjust=1.5, size=3) +
+  scale_x_continuous(trans='log10', labels=scales::comma_format()) +
+  scale_y_continuous(trans='log10', labels=scales::comma_format()) +
+  theme_light() +
+  labs(title="Number of people walking vs. biking to work in each USA state",
+       x="Number of ppl walking to work (log N)", 
+       y="Number of ppl biking to work (log N)")
 
 ```
+

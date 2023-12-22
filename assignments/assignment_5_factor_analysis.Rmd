@@ -23,36 +23,7 @@ The dataset includes the responses of 154 individuals on the following variables
 
 __ar1-ar28__ contain the data from the 28 items of the ARS. Participants had to rate their agreement with each statement separately on a 1-5 Likert scale with the following anchors: 1 - strongly disagree, 2 – disagree, 3 - no opinion, 4 – agree, 5 - strongly agree.
 
-The questions in the ARS were the following:
-
-  * __ar 1.__ Humans have no right to displace wild animals by converting wilderness areas into farmlands, cities, and other things designed for people.
-  * __ar 2.__ Animal research cannot be justified and should be stopped.
-  * __ar 3.__ It is morally wrong to drink milk and eat eggs.
-  * __ar 4.__ A human has no right to use a horse as a means of transportation (riding) or entertainment (racing).
-  * __ar 5.__ It is wrong to wear leather jackets and pants.
-  * __ar 6.__ Most medical research done on animals is unnecessary and invalid.
-  * __ar 7.__ I have seriously considered becoming a vegetarian in an effort to save animal lives.
-  * __ar 8.__ Pet owners are responsible for preventing their pets from killing other animals, such as cats killing mice or snakes eating live mice.
-  * __ar 9.__ We need more regulations governing the use of animals in research.
-  * __ar 10.__ It is morally wrong to eat beef and other "red" meat.
-  * __ar 11.__ Insect pests (mosquitoes, cockroaches, flies, etc.) should be safely removed from the house rather than killed.
-  * __ar 12.__ Animals should be granted the same rights as humans.
-  * __ar 13.__ It is wrong to wear leather belts and shoes.
-  * __ar 14.__ I would rather see humans die or suffer from disease than to see animals used in research.
-  * __ar 15.__ Having extended basic rights to minorities and women, it is now time to extend them also to animals.
-  * __ar 16.__ God put animals on Earth for man to use.
-  * __ar 17.__ There are plenty of viable alternatives to the use of animals in biomedical and behavioral research.
-  * __ar 18.__ Research on animals has little or no bearing on problems confronting people.
-  * __ar 19.__ New surgical procedures and experimental drugs should be tested on animals before they are used on people.
-  * __ar 20.__ I am very concerned about pain and suffering in animals.
-  * __ar 21.__ Since many important questions cannot be answered by doing experiments on people, we are left with no alternatives but to do animal research.
-  * __ar 22.__ It is a violation of an animal's rights to be held captive as a pet by a human.
-  * __ar 23.__ It is wrong to wear animal fur (such as mink coats).
-  * __ar 24.__ It is appropriate for humans to kill animals that destroy human property, for example, rats, mice, and pigeons.
-  * __ar 25.__ Most cosmetics research done on animals is unnecessary and invalid.
-  * __ar 26.__ It is morally wrong to eat chicken and fish.
-  * __ar 27.__ Most psychological research done on animals is unnecessary and invalid.
-  * __ar 28.__ Hunters play an important role in regulating the size of deer populations.
+1
 
 You can get more information about the ARS here: http://core.ecu.edu/psyc/wuenschk/Animals/Anim-Rights-Q.htm
 
@@ -103,14 +74,44 @@ Talk about the limitations of your study and findings.
 Read the Animal Rights Scale (ARQ) dataset from the 'data/' folder. Pay attention to the extension.
 
 ```{r}
+#install.packages("readr")
+library(readr)
 
+# Define the raw URL of the TSV dataset file from GitHub
+url <- "https://raw.githubusercontent.com/bertram-marek/elte-ppk-r-course-r_data_analysis-23_24_1/main/data/assignment_5_dataset.csv"
+
+# Read the TSV file into a data frame using readr
+ARS <- read.csv(url)
 ```
 
 ## EDA
 
 ```{r}
+summary(ARS[,1:28])  #  The ARS items are the first 28 columns
+
+missing_data_summary <- apply(ARS, 2, function(x) sum(is.na(x)))
+print(missing_data_summary)
+
+# Exclude rows with any missing values
+ARS_clean <- na.omit(ARS)
 
 ```
+
+```{r}
+#Multivariate normality can be checked using Mardia's test.
+#If multivariate normality is violated, one can either transform the data or use a robust estimation method.
+
+#install.packages("MVN")
+library(MVN)
+result <- mvn(ARS_clean[,1:28], mvnTest = "mardia")
+print(result$multivariateNormality)
+```
+
+Mardia's Skewness: A large value (6010.06) with a very small p-value (4.27e-80) suggests that the assumption of multivariate normality is violated in terms of skewness.
+
+Mardia's Kurtosis: A value of 13.92 and a p-value of 0 also indicate a violation of multivariate normality in terms of kurtosis.
+
+MVN: The overall result for multivariate normality (MVN) is "NO," which means that based on Mardia's test, the assumption of multivariate normality is not met.
 
 ## Data manipulation
 
@@ -119,6 +120,13 @@ Recode the sex and party variables as factor type variables with the following l
   * party: 1 - democrat, 2 - republican, 3 - other, 4 - none
 
 ```{r}
+ARS$sex <- factor(ARS$sex,
+                   levels = c(1, 2),
+                   labels = c("male", "female"))
+
+ARS$party <- factor(ARS$party,
+                     levels = c(1, 2, 3, 4),
+                     labels = c("democrat", "republican", "other", "none"))
 
 ```
 
@@ -126,22 +134,37 @@ Recode the sex and party variables as factor type variables with the following l
 
 __Note:__ Remember to only include the variables of the questionnaire that will be part of the factor analysis.
 
-```{r}
-
-```
-
 Create the correlation matrix.
 
 ```{r}
+# A correlation matrix will provide insights into how the ARS items are correlated with one another.
 
+cor_matrix <- cor(ARS_clean[,1:28], method = "pearson")
+#print(cor_matrix)
 ```
+
 
 ## Visualizing the correlation matrix
 
 Create a visualization of the results of the correlation matrix.
 
 ```{r}
+#install.packages("gplots")
+library(gplots)
 
+# Vsualization
+heatmap.2(cor_matrix, 
+          main = "Correlation Heatmap", 
+          notecol="black",      # Change font color of cell labels to black
+          density.info="none",  # Turn off density plot inside color legend
+          trace="none",         # Turn off trace lines inside the heatmap
+          margins = c(12,12),   # Adjust the margin for better visibility
+          col = colorRampPalette(c("blue", "white", "red"))(25)  # Color scheme
+)
+
+#The colors on the heatmap will range from blue (negative correlation) to white (zero correlation) to red (positive correlation).
+
+#This will give a visual representation of the correlations between variables, with more intense colors indicating stronger correlations.
 ```
 
 ## Test for factorability
@@ -149,18 +172,88 @@ Create a visualization of the results of the correlation matrix.
 Calculate the KMO score.
 
 ```{r}
+# Check Factorability
+# Before proceeding with factor analysis, we need to check the factorability of the data. The #Kaiser-Meyer-Olkin (KMO) measure of sampling adequacy and Bartlett's test of sphericity are #commonly used. A KMO value > 0.6 is usually considered adequate for factor analysis.
 
+library(psych)
+KMO(cor_matrix)
+
+#A significant Bartlett's test (p < 0.05) indicates that the correlation matrix is different from an identity matrix and factor analysis may be useful.
+
+
+#install.packages("psych")
+library(psych)
+result <- cortest.bartlett(cor_matrix)
+print(result)
 ```
 
 ## Test for multivariate normality
 
 ```{r}
+#install.packages("MVN")
+library(MVN)
+result <- mvn(ARS_clean[,1:28], mvnTest = "mardia")
+print(result$multivariateNormality)
 
+```
+
+
+```{r}
+library(psych)
+mardia(ARS_clean)
 ```
 
 Test for skewness and kurtosis.
 
+
 ```{r}
+#install.packages("MVN")
+library(MVN)
+result <- mvn(ARS_clean[,1:28], mvnTest = "mardia")
+print(result$multivariateNormality)
+
+```
+
+
+```{r}
+#Computing Skewness and Kurtosis for Each Item: Skewness measures the asymmetry of a distribution. A value of 0 indicates perfect symmetry. A rule of thumb is that absolute values greater than 3 are extreme. 
+
+#Kurtosis measures the "tailedness" of a distribution. A value of 0 is ideal for normal distribution. Absolute values greater than 10 can be considered extreme.
+
+library(moments)  # for skewness and kurtosis
+
+skew_values <- skewness(ARS_clean[,1:28])
+kurt_values <- kurtosis(ARS_clean[,1:28])
+
+# View the skewness and kurtosis values
+print(data.frame(Item=names(ARS_clean[,1:28]), Skewness=skew_values, Kurtosis=kurt_values))
+
+```
+
+```{r}
+#Compute Communalities:
+#After running a factor analysis, one can obtain communalities which measure how much of the variance in each variable is "accounted for" by the factors. Items with very low communalities (less than 0.3) might be candidates for removal.
+
+num_factors=5
+fa_result <- factanal(ARS_clean[,1:28], factors=num_factors, rotation="varimax")
+communalities <- fa_result$uniquenesses
+print(data.frame(Item=names(ARS_clean[,1:28]), Communalities=communalities))
+
+#5, 6, 10, 13
+```
+
+
+```{r}
+#Determine Items to Drop:
+#One can consider dropping items with extreme skewness or kurtosis. Also consider dropping items with low communalities since they aren't well-represented by the factors.
+
+items_to_drop <- names(ARS_clean[,1:28])[which(abs(skew_values) > 3 | abs(kurt_values) > 10 | communalities < 0.3)]
+print(items_to_drop)
+
+#5, 13
+
+data_cleaned <- ARS_clean[,1:28][ , !(names(ARS_clean[,1:28]) %in% items_to_drop)]
+
 
 ```
 
@@ -169,7 +262,19 @@ Test for skewness and kurtosis.
 Create a scree plot to help the decision on how many factors to include.
 
 ```{r}
+eigen_values <- eigen(cor_matrix)$values
 
+plot(eigen_values, type="b", main="Scree Plot", xlab="Number of Factors", ylab="Eigenvalue")
+abline(h=1, col="red", lty=2)  # Optional line to help determine the number of factors
+
+#The idea behind the scree plot is to look for a point where the plot starts to level off, this is often called the "elbow" of the plot. The factors to the left of this point are the ones one might consider retaining, as they explain the most variance.
+
+#The red line (abline()) is drawn at an eigenvalue of 1, which is a common cutoff point: factors with eigenvalues greater than 1 are often retained.
+```
+
+```{r}
+#fa.parallel(data_cleaned, fa="both")
+#Parallel analysis suggests that the number of factors =  4  and the number of components =  2 
 ```
 
 ## Run the factor analysis
@@ -177,31 +282,79 @@ Create a scree plot to help the decision on how many factors to include.
 Run the factor analysis with the chosen number of factors.
 
 ```{r}
+efa <- fa(data_cleaned, nfactors=4, rotate="varimax")  #  with 4 factors 
+print(efa)
 
 ```
+
+
+```{r}
+cor_matrix_2 <- cor(data_cleaned, method = "pearson")
+#print(cor_matrix_2)
+```
+
+
+```{r}
+# Finding pairs of variables with extremely high correlations
+high_corr_pairs <- which(abs(cor_matrix) > 0.95 & abs(cor_matrix) < 1, arr.ind = TRUE)
+print(high_corr_pairs)
+
+# Finding variables with low variance
+low_variance <- which(apply(cor_matrix, 2, var) < 0.01)
+print(low_variance)
+
+```
+
 
 Sort the communality scores in decreasing order.
 
 ```{r}
+
+# the factor analysis results on our data stored in the fa_result variable:
+
+fa_result <- factanal(data_cleaned, factors=4, rotation="varimax")
+
+#One can then extract the communalities from this result and sort them in decreasing order:
+
+communalities <- fa_result$uniquenesses  # Extract communalities
+sorted_communalities <- sort(communalities, decreasing = TRUE)  # Sort in decreasing order
+
+# Display sorted communalities
+print(sorted_communalities)
+
+#This gives us a named vector with items and their associated communalities, sorted from highest to lowest. Items with low communalities aren't well represented by the factors and might be candidates for removal if they aren't theoretically important.
 
 ```
 
 Calculate the mean communality scores.
 
 ```{r}
-
+mean_communality <- mean(communalities)
 ```
 
 Show the factor loadings for the chosen factor structure.
 
 ```{r}
+# Display the mean communality
+print(mean_communality)
 
+#This gives us the average communality across all the items. It's a good indicator of how well, on average, the items are being represented by the factors that were extracted. If this number is notably low, it might suggest that the extracted factors aren't doing a great job capturing the variance in the items.
 ```
 
 Visualize the factor structure.
 
 ```{r}
+# Extract factor loadings
+loadings <- fa_result$loadings
 
+# Convert loadings to matrix if they aren't already
+loadings_matrix <- as.matrix(loadings)
+
+# Plot heatmap
+heatmap(loadings_matrix, Rowv=NA, Colv=NA, col = colorRampPalette(c("white", "blue"))(20), 
+        scale="column", margins=c(5,10))
+
+#The heatmap should give us a good visual representation of which items load on which factors.
 ```
 
 ## Run linear regression
@@ -209,18 +362,199 @@ Visualize the factor structure.
 Calculate the factor scores.
 
 ```{r}
+# Conducting factor analysis
+# 4 factors based on the analysis
+fa_result <- fa(ARS_clean[, 1:28], nfactors = 4, rotate = "varimax")
+
+# Viewing the factor loadings
+print(loadings(fa_result), cutoff = 0.3, sort = TRUE)
+```
+
+
+```{r}
+#Calculate the factor scores
+
+#install.packages("psych")
+library(psych)
+fa_result <- fa(data_cleaned, nfactors = 4, rotate = "varimax")
+# Viewing the factor loadings
+print(loadings(fa_result), cutoff = 0.3, sort = TRUE)
+
+
+# Extract the loadings
+factor_loadings <- loadings(fa_result)
+
+factor_names <- c("Rights", "Exploitation", "Research", "Ethical")
+
+# Create a data frame that lists items and their highest loading factor
+item_factor_df <- apply(abs(factor_loadings), 1, function(x) {
+  factor_names[which.max(x)]
+})
+
+# Convert to a data frame
+item_factor_df <- data.frame(Item = rownames(factor_loadings), Factor = item_factor_df)
+
+# Print the data frame
+print(item_factor_df)
+
+factor_scores <- factor.scores(data_cleaned, fa_result)$scores
 
 ```
+
+
+```{r}
+# Create a vector of item names 
+item_names <- rownames(factor_loadings)
+
+# Determine the highest loading factor for each item
+highest_loading_factor <- apply(factor_loadings, 1, function(x) factor_names[which.max(x)])
+
+# Create a data frame showing each item and its corresponding factor
+item_factor_df <- data.frame(Item = item_names, Factor = highest_loading_factor)
+
+# Sort the data frame by factor
+item_factor_df <- item_factor_df[order(item_factor_df$Factor, decreasing = FALSE), ]
+
+# Print the organized list of factors and their items
+print(item_factor_df)
+
+```
+
+Based on the content of the items that load on each factor, here are potential names that capture the essence of each factor's underlying theme:
+Factor A: "Animal Rights"
+Factor B: "Animal Exploitation"
+Factor C: "Animal Research"
+Factor D: "Animal Ethical Stance"
+
+
+```{r}
+data_cleaned <- cbind(data_cleaned, factor_scores)
+
+data_cleaned$liberal <- ARS_clean$liberal
+
+# Build the linear regression model
+linear_model <- lm(liberal ~ MR1 + MR2 + MR3 + MR4, data = data_cleaned)
+
+# Summary of the linear regression model
+summary(linear_model)
+
+```
+
 
 Bind factor scores to the original dataset.
 
 ```{r}
-
+# data_with_scores <- cbind(data_cleaned, factor_scores)
 ```
 
 Run the logistic regression.
 
 ```{r}
+# party: 1 - democrat, 2 - republican, 3 - other, 4 – none.
+data_cleaned$party <- ARS_clean$party
+
+# Creating a binary party variable
+data_cleaned_filtered <- subset(data_cleaned, !(party %in% c(3, 4)))
+
+# Naming the factors
+data_cleaned_filtered$party <- factor(data_cleaned_filtered$party, levels = c(1, 2), labels = c("Democrats", "Republicans"))
+
+
+# Logistic Regression
+logit_model <- glm(party ~ MR1 + MR2 + MR3 + MR4, data=data_cleaned_filtered, family="binomial")
+
+# Print the summary
+summary(logit_model)
 
 ```
 
+# Report
+
+Based on Mardia's test, the assumption of multivariate normality is not met. If multivariate normality is violated, one can either transform the data or use a robust estimation method. The significant Bartlett's test indicates that factor analysis may be useful.
+
+In the pursuit of refining the factor model, it is advisable to consider the exclusion of items exhibiting pronounced skewness or kurtosis, as these may distort the underlying factor structure. Additionally, items demonstrating low communalities warrant exclusion, given that they are inadequately accounted for by the extracted factors. In accordance with these criteria, items 5 and 13 have been omitted from the analysis.
+
+Varimax rotation is the most commonly used rotation method in exploratory factor analysis because of its effectiveness in achieving a simple structure and its assumption of factor independence. Varimax is an orthogonal rotation, which means it assumes that the factors are uncorrelated. Each factor is represented by a subset of variables that have high loadings on that factor .The decision to retain four factors was informed by observations from the scree plot and eigenvalue analysis. Based on the content of the items that load on each factor, here are potential names that capture the essence of each factor's underlying theme:
+Factor A: "Animal Rights"
+Factor B: "Animal Exploitation"
+Factor C: "Animal Research"
+Factor D: "Animal Ethical Stance"
+
+```{r}
+eigen_values <- eigen(cor_matrix)$values
+
+plot(eigen_values, type="b", main="Scree Plot", xlab="Number of Factors", ylab="Eigenvalue")
+abline(h=1, col="red", lty=2)  # Optional line to help determine the number of factors
+```
+
+Report the post-extraction eignevalues, variance explained, and cumulative variance explained by the final factors in a table format. Report the average post-extraction communality of the items:
+
+```{r}
+# Extract the required information
+# Eigenvalues
+eigenvalues <- fa_result$values
+
+# Proportion of variance explained by each factor
+variance_explained <- eigenvalues / sum(eigenvalues)
+
+# Cumulative variance explained
+cumulative_variance <- cumsum(variance_explained)
+
+# Average communality
+average_communality <- mean(1 - fa_result$uniquenesses)
+
+# Create a table for reporting
+report_table <- data.frame(
+  Factor = 1:length(eigenvalues),
+  Eigenvalues = eigenvalues,
+  Variance_Explained = variance_explained,
+  Cumulative_Variance = cumulative_variance
+)
+
+# Print the table
+print(report_table)
+
+# Print the average communality
+print(paste("Average Communality: ", average_communality))
+
+```
+
+
+Report the final factor structure including the factor names. Also, report the post-extraction commonalities of each item and the loadings of the items on the final factors in a table format:
+
+
+```{r}
+# Assuming 'fa_result' is your factor analysis result object
+loadings_matrix <- unclass(fa_result$loadings)
+loadings_df <- as.data.frame(loadings_matrix)
+
+# Extract communalities
+communalities <- 1 - fa_result$uniquenesses
+
+# Add the communalities to the loadings data frame
+loadings_df$Communalities <- communalities
+
+# Rename the factor columns with your chosen names
+names(loadings_df)[1:length(factor_names)] <- factor_names
+
+# Add communalities and item names
+loadings_df$Communalities <- 1 - fa_result$uniquenesses
+loadings_df$Item <- rownames(loadings_matrix)
+
+# Reorder columns to have 'Item' and 'Communalities' first
+loadings_df <- loadings_df[, c(ncol(loadings_df), 1:(ncol(loadings_df)-1))]
+
+# Print the data frame
+print(loadings_df)
+
+```
+
+Report which factor (if any) was the most influential predictor of how liberal a person is in the linear regression model and explain what do you base this assessment on:
+
+A linear regression analysis was conducted to predict participants' political orientation (liberal vs. conservative) based on four extracted factors from the Animal Rights Scale (ARS). The model included factors MR1, MR2, MR3, and MR4 as predictors.
+
+The overall model was statistically significant, F(4, 144) = 4.007, p = 0.004115, explaining 10.02% of the variance in the liberal-conservative spectrum (Multiple R-squared = 0.1002, Adjusted R-squared = 0.07516). Animal Rights (MR1) factor was not a significant predictor of liberalism (B = 0.08015, SE = 0.06774, t = 1.183, p = 0.23869). Animal Exploitation (MR2) was a significant predictor of liberalism (B = 0.25420, SE = 0.06774, t = 3.752, p = 0.000253). For each one-unit increase in MR2, the predicted level of liberalism increases by 0.25420. This factor had the largest absolute coefficient and was statistically significant, suggesting it is the most influential predictor in the model. Animal Research (MR3) was not a significant predictor of liberalism (B = -0.03422, SE = 0.06774, t = -0.505, p = 0.614187). Animal Ethical Stance (MR4) also did not significantly predict liberalism (B = 0.03659, SE = 0.06774, t = 0.540, p = 0.589956).
+
+The model indicates that Animal Exploitation is the most influential factor in predicting political orientation on the liberal-conservative spectrum among the factors derived from the ARS. This suggests that the attitudes and beliefs captured by Animal Exploitation have a significant association with participants' political orientation.
+
+As a limitation of this model I would highlight the modest amount of variance explained by the model, which suggests that other unmeasured factors may also play a significant role in determining political orientation. The predictive power of Animal Exploitation should be explored further to understand the specific attitudes and beliefs it encompasses that relate to political liberalism.
