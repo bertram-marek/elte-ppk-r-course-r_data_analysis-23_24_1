@@ -19,7 +19,8 @@ You will have to create 3 plots based on the datasets and instructions detailed 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
-library(tidytuesdayR)
+library(scales)
+
 ```
 
 ## Task 1: Climbing expeditions
@@ -31,6 +32,35 @@ The 2020-09-22 TidyTueday datasets are about climbing expeditions. From the thre
 -   The bar colors use the viridis palette and light theme.
 
 ```{r}
+
+# Importing data
+
+expeditions_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-22/expeditions.csv")
+
+view(expeditions_raw)
+
+# Creating factors of the 15 most frequent peaks, and dropping the other factor
+
+expeditions <- expeditions_raw %>%
+  mutate(peak_name = fct_lump(peak_name, n = 15, other_level = "Other")) %>% 
+  filter(peak_name != "Other") 
+
+# Calculating the sum of expeditions
+
+expeditions <- expeditions %>% 
+  group_by(peak_name) %>% 
+  mutate(sum_expeditions = n())
+
+# Creating the plot
+
+ggplot(expeditions, aes(y = fct_reorder(peak_name, sum_expeditions), fill = season)) + # Defining scales, the filling of bars, and ordering peaks, as the sum of expeditions
+    geom_bar(show.legend = TRUE) + # Creating a bar plot, and showing the color palette
+    scale_fill_viridis_d()+ # Selecting viridis palette
+    labs(y = NULL, 
+        x = "Number of expeditions",
+        title = "The 15 most popular peaks stacked by season of expedition")+ # Adding labels and title  
+    theme_light()+ # setting theme to theme light
+    theme(legend.position = "bottom") # Setting legend to appear under the plot
 
 ```
 
@@ -46,6 +76,35 @@ Notes:
 
 ```{r}
 
+# Importing data
+
+phd_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-19/phd_by_field.csv")
+
+view(phd_raw)
+
+# Counting all phds by broad fields
+
+phd <- phd_raw %>%
+  group_by(year, broad_field) %>% 
+  mutate(sum_n_phds = sum(n_phds, na.rm = TRUE))
+
+view(phd)
+
+# Creating the plot
+
+ggplot(phd, aes(x = year, y = sum_n_phds, color = broad_field)) + # Defining scales, adding colors indicating broad fields 
+  geom_line(size = 1.2) + # Creating a line plot, and setting line size to 1.2
+  scale_x_continuous(breaks = pretty_breaks()) + # Applying pretty_breaks() to x axis
+  scale_y_continuous(labels = comma_format()) + # Setting labels of the y axis comma formatted
+  labs(y = NULL, 
+        x = NULL,
+        title = "Number of awarded Ph. D.-s in the US by year")+ # Adding labels and title
+  scale_color_brewer(palette = "Dark2",  name = "Broad field") + # Setting color palette to Dark2 and adding title to the color palette
+  theme_minimal() # Setting theme to theme minimal
+
+
+
+
 ```
 
 ## Task 3: Commute in the US
@@ -59,5 +118,37 @@ Notes:
 -   The point size is 2, . The theme is set to light.
 
 ```{r}
+
+# Importing data
+
+commute_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-11-05/commute.csv")
+
+# Counting all commutes by state and mode, adding state region to the new table as well
+
+commute <- commute_raw %>%
+  group_by(state_region, state, mode) %>%
+  summarise(TotalCommutes = sum(n)) %>%
+  spread(key = mode, value = TotalCommutes, fill = 0)
+
+# Adding a column of state names abbrevations
+
+commute <-  merge(commute, data.frame(state = state.name, abbrev = state.abb), by = "state")
+
+view(commute)
+
+
+ggplot(commute, aes(x = Walk, y = Bike, label = state, color = state_region)) + # Defining scales, adding colors indicating state region 
+  geom_point(size= 2) + # Creating a scatter plot, setting point size to 2
+  geom_text(aes(label = abbrev), color = "black", check_overlap = TRUE
+) + # Adding labels with the abbreviations of state names, without labels, that would overlap
+  labs(x = "Number of ppl walking to work (log N)", y = "Number of ppl biking to work (log N)", title = "Number of people walking vs. biking to work in each USA state",  color = "State region") + # Adding labels and title 
+  scale_x_log10(labels = scales::comma_format()) + # Applying log transformation, and comma formatting on the y-axis
+  scale_y_log10(labels = scales::comma_format(), limits = c(25, NA)) + # Applying comma formatting on the x-axis, and setting the lower limit to 25
+  theme_light() # Setting theme to theme light
+
+
+
+
+
 
 ```
