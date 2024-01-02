@@ -4,6 +4,8 @@ author: "Tamas Nagy"
 output: html_document
 editor_options: 
   chunk_output_type: console
+student: "Lili Kővári"
+neptun ID: "YRUL7L"
 ---
 
 You will have to create 3 plots based on the datasets and instructions detailed below. You will find the plots themeselves in the `assignments/assignment_2_plots`. Your task is to write the code that will reproduce the plots as closely as possible.
@@ -20,6 +22,8 @@ You will have to create 3 plots based on the datasets and instructions detailed 
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(tidytuesdayR)
+library(ggplot2)
+library(forcats)
 ```
 
 ## Task 1: Climbing expeditions
@@ -31,7 +35,34 @@ The 2020-09-22 TidyTueday datasets are about climbing expeditions. From the thre
 -   The bar colors use the viridis palette and light theme.
 
 ```{r}
+data1 <- read.csv('C:/Users/Felhasználó/OneDrive/Asztali gép/assignments/2ndassignment/expeditions.csv')
+view(data1) # assessing current dataset
 
+length(unique(data1$peak_name)) # a total of 391 peaks
+
+df <- as.factor(data1$peak_name)
+freq <- df %>%
+  fct_lump(15) %>%
+  table() 
+freq[1:15] # now we can see the 15 most frequent peaks along w/ the number of occurences, without "other"
+
+freqs <- data1 %>%
+  filter(peak_name %in% c("Ama Dablam", "Annapurna I", "Annapurna IV", "Baruntse", "Cho Oyu", "Dhaulagiri I", "Everest", "Himlung Himal", "Kangchenjunga", "Lhotse", "Makalu", "Manaslu", "Pumori Putha Hiunchuli", "Tilicho"))
+view(freqs) # data needed to visualize
+
+occ <- freqs %>% 
+  group_by(peak_name) %>%   
+  mutate(occurences = n())
+view(occ) # now we have the number of occurences for the next step
+
+plot1 <- ggplot(occ, aes(x = reorder(peak_name,-occurences, decreasing=TRUE), fill = season))+
+  geom_histogram(stat="count")+
+  coord_flip()+
+  labs(title = "The 15 most popular peaks stacked by season of expedition", fill = "season", x = NULL, y = "Number of expeditions")+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette="viridis")+ 
+  theme_light()
+plot1 # you asked for the viridis which is different from the reference plot but here we are:))
 ```
 
 ## Task 2: PhDs awarded
@@ -45,7 +76,26 @@ Notes:
 -   The line size is 1.2, the colors are from the brewer "Dark2" palette. The theme is set to minimal.
 
 ```{r}
+data2<- read.csv('C:/Users/Felhasználó/OneDrive/Asztali gép/assignments/2ndassignment/phd_by_field.csv')
+view(data2) # assessing current dataset
 
+agg <- aggregate(n_phds ~ broad_field + year, 
+  data=data2, 
+  function(x) { 
+    c(sum=sum(x)) 
+})
+agg # we aggregated the dataset...
+all <- as.data.frame(agg)
+view(all) # and converted back into dataframe, just in case
+
+plot2 <- ggplot(all, aes(x = year, y = n_phds, color = broad_field))+
+  geom_line(size = 1.2)+
+  labs(title = "Number of awarded Ph.D.-s in the US by year", color = "Broad field", x = NULL, y = NULL)+
+  scale_y_continuous(labels=scales::comma)+
+  scale_color_brewer(palette="Dark2")+
+  xlim(2008,2016)+
+  theme_minimal()
+plot2 # order of the colors do not match :c
 ```
 
 ## Task 3: Commute in the US
@@ -59,5 +109,28 @@ Notes:
 -   The point size is 2, . The theme is set to light.
 
 ```{r}
+data3 <- read.csv('C:/Users/Felhasználó/OneDrive/Asztali gép/assignments/2ndassignment/commute.csv')
+view(data3) # assessing current dataset
 
+agg2 <- aggregate(n ~ mode + state_abb + state_region, 
+  data=data3, 
+  function(x) { 
+    c(sum=sum(x)) 
+})
+agg2 # we aggregated the dataset...
+us <- as.data.frame(agg2)
+view(us) # and converted back into dataframe, just in case
+
+usa <- us %>% 
+  pivot_wider(names_from='mode', values_from='n')
+view(usa) # now we have the data to visualize
+
+plot3 <- ggplot(usa, aes(x = Walk, y = Bike, color = state_region, label = state_abb))+
+  geom_point(size = 2)+
+  labs(title = "The number of people walking vs. biking to work in each USA state", color = "State region", x = "Number of people walking to work (log N)", y = "Number of people biking to work (log N)")+
+  scale_x_continuous(trans='log10')+
+  scale_y_continuous(trans='log10')+
+  theme_light()+
+  geom_text(color="black")
+plot3 # labels were proven to be too challenging for me :c
 ```

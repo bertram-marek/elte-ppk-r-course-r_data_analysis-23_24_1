@@ -4,11 +4,20 @@ author: "Marton Kovacs / Zoltan Kekecs"
 output: html_document
 editor_options: 
   chunk_output_type: console
+student: "Lili Kővári"
+neptun ID: "YRUL7L"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+install.packages("factoextra")
+library(corrplot)
+library("Hmisc")
 library(tidyverse)
+library(psych)
+library(QuantPsyc)
+library(energy)
+library(factoextra)
 ```
 
 # Introduction
@@ -40,19 +49,19 @@ The questions in the ARS were the following:
   * __ar 13.__ It is wrong to wear leather belts and shoes.
   * __ar 14.__ I would rather see humans die or suffer from disease than to see animals used in research.
   * __ar 15.__ Having extended basic rights to minorities and women, it is now time to extend them also to animals.
-  * __ar 16.__ God put animals on Earth for man to use.
+  * __ar 16.__ God put animals on Earth for man to use. (invert)
   * __ar 17.__ There are plenty of viable alternatives to the use of animals in biomedical and behavioral research.
-  * __ar 18.__ Research on animals has little or no bearing on problems confronting people.
-  * __ar 19.__ New surgical procedures and experimental drugs should be tested on animals before they are used on people.
+  * __ar 18.__ Research on animals has little or no bearing on problems confronting people. (invert)
+  * __ar 19.__ New surgical procedures and experimental drugs should be tested on animals before they are used on people. (invert)
   * __ar 20.__ I am very concerned about pain and suffering in animals.
-  * __ar 21.__ Since many important questions cannot be answered by doing experiments on people, we are left with no alternatives but to do animal research.
+  * __ar 21.__ Since many important questions cannot be answered by doing experiments on people, we are left with no alternatives but to do animal research. (invert)
   * __ar 22.__ It is a violation of an animal's rights to be held captive as a pet by a human.
   * __ar 23.__ It is wrong to wear animal fur (such as mink coats).
-  * __ar 24.__ It is appropriate for humans to kill animals that destroy human property, for example, rats, mice, and pigeons.
+  * __ar 24.__ It is appropriate for humans to kill animals that destroy human property, for example, rats, mice, and pigeons. (invert)
   * __ar 25.__ Most cosmetics research done on animals is unnecessary and invalid.
   * __ar 26.__ It is morally wrong to eat chicken and fish.
   * __ar 27.__ Most psychological research done on animals is unnecessary and invalid.
-  * __ar 28.__ Hunters play an important role in regulating the size of deer populations.
+  * __ar 28.__ Hunters play an important role in regulating the size of deer populations. (invert)
 
 You can get more information about the ARS here: http://core.ecu.edu/psyc/wuenschk/Animals/Anim-Rights-Q.htm
 
@@ -103,13 +112,62 @@ Talk about the limitations of your study and findings.
 Read the Animal Rights Scale (ARQ) dataset from the 'data/' folder. Pay attention to the extension.
 
 ```{r}
-
+data <- read.csv('C:/Users/Felhasználó/OneDrive/Asztali gép/assignments/3rdassignment/assignment_5_dataset.csv')
+view(data) # assessing current dataset
 ```
 
 ## EDA
 
 ```{r}
+str(data)
 
+data %>%
+  count(sex) # 124 women, 29 women participated, 1 did not share 
+
+data %>%
+  count(party) %>% # 30 dem, 34 rep, 9 other, 80 NA
+  ggplot(aes(party,n))+
+  geom_col() # most subjects did not provide information about their party affiliation as for those who did, seems like number of democrats and number of rebublicans is also the same, lets check the sex distribution between these two groups!
+
+sex12 <- data %>%
+  filter(party %in% c("1","2")) 
+view(sex12) # we narrowed our further analyses, see how many subjects remained!
+
+str(sex12) # 64 observations = 64 subjects. How about sexes?
+sex12 %>%
+  count(sex) # 45 women, 19 men. Does not seem equally distributed, right? Anyway, as a plot twist, see what's the outcome this way
+
+sex12 %>%
+  filter(party=="1") %>%
+  count(sex) # 24 democrat women, 6 democrat men
+sex12 %>%
+  filter(party=="2") %>%
+  count(sex) # 21 republican women, 13 democrat men
+
+# how about liberality?
+sex12 %>%
+  count(liberal) %>% # 2 very conservative - 21 - 25 - 13 - 3 very liberal
+  ggplot(aes(liberal,n))+
+  geom_col() # seems like liberality is almost normally distributed
+
+# here comes the fun part: the questionnaire! How about the scales? I noted that - at least in my opinion - there were items that are required to interpret in an inverted way (not to mention they are quite controversial); to make my work easier, I decided to eliminate these items from further analyses, these are variables 'ar16', 'ar19', 'ar21', 'ar24', 'ar28', I'd rather do it here, before other data manipulations
+
+final <- sex12 %>%
+  mutate(ar16=NULL,ar19=NULL,ar21=NULL,ar24=NULL,ar28=NULL)
+view(final)
+str(final) # from now on, we'll only work with 26 variables
+
+means <- colMeans(final[ , 1:23]) # from 1 to 5, these are the means to each items
+mean(means) # the absolute mean answer was 2,25, pretty "mean-ish" ranging form 1 to 5
+sort(means) # so the lowest score was given to item3, indicating that people don't really wish to leave diary and egg out of their diet... the highest score was given to item25, showing people are pretty much against cosmetics research - well, who am I to disaggree?
+
+# have a look at the individual means!
+final$m <-apply(final[,1:23],1,mean)
+view(final) # at this point this does not really make sense.. maybe some visualization helps:
+
+final %>%
+  ggplot(aes(liberal,m,color=sex, size=party))+
+  geom_point() # probably not the best choice but somehow we can see a tendency... and that's what we want to test below
 ```
 
 ## Data manipulation
@@ -119,7 +177,12 @@ Recode the sex and party variables as factor type variables with the following l
   * party: 1 - democrat, 2 - republican, 3 - other, 4 - none
 
 ```{r}
+fin <- final %>%
+  mutate(sex=recode(sex, '1'='female', '2'='male'),party=recode(party, '1'='democrat', '2'='republican'))
+view(fin)
 
+# note1: I wish to work only with democrats and republicans, therefore I only recoded these columns
+# note2: according to the first explanation above, I used 1 as females, 2 as males :)
 ```
 
 # Creating a correlation matrix
@@ -127,13 +190,17 @@ Recode the sex and party variables as factor type variables with the following l
 __Note:__ Remember to only include the variables of the questionnaire that will be part of the factor analysis.
 
 ```{r}
-
+# I partialed out the variables above, however, it may be required to eliminate the row-wise mean column I created. Also, get rid of sex and party since they are categorical:
+reduced <- fin %>%
+  mutate(m=NULL,sex=NULL,party=NULL)
+view(reduced)
 ```
 
 Create the correlation matrix.
 
 ```{r}
-
+cmat <- cor(reduced)
+round(cmat, 2)
 ```
 
 ## Visualizing the correlation matrix
@@ -141,7 +208,7 @@ Create the correlation matrix.
 Create a visualization of the results of the correlation matrix.
 
 ```{r}
-
+corrplot(cmat)
 ```
 
 ## Test for factorability
@@ -149,19 +216,19 @@ Create a visualization of the results of the correlation matrix.
 Calculate the KMO score.
 
 ```{r}
-
+KMO(reduced) # KMO overall is > .60, so we can go along with these indicators
 ```
 
 ## Test for multivariate normality
 
 ```{r}
-
+mvnorm.etest(reduced, R=100) # the Energy-test w/ 100 replicates showed a p value indicating that we dn't have evidence to presume our variables don't follow multivariate distribution
 ```
 
 Test for skewness and kurtosis.
 
 ```{r}
-
+mult.norm(reduced)$mult.test # another method, supporting the results of the preceding test
 ```
 
 ## Create scree plot
@@ -169,7 +236,25 @@ Test for skewness and kurtosis.
 Create a scree plot to help the decision on how many factors to include.
 
 ```{r}
+# first, we perform a principal component analysis (PCA)
+princ <- prcomp(reduced, center = TRUE, scale. = TRUE)
+princ
 
+# then we calculate total variances
+vars = princ$sdev^2 / sum(princ$sdev^2)
+vars
+
+# finally, we make the plot
+qplot(c(1:24), vars) + 
+  geom_line() + 
+  xlab("dimension") + 
+  ylab("eigenvalue")+
+  ggtitle("Scree plot")
+
+# see the explained variance percentages
+percs <- print(vars)
+sort(percs, decreasing=TRUE) # based on this I'm too afraid to exclude any. But according to Kaiser's rule, only those eigenvalues that exceed 1 should be kept. Let's see:
+percs>0.01 # the first 19 components. Elbow method? The line flattens out from the 6th component which suggests we shall include the first 5 principal components
 ```
 
 ## Run the factor analysis
@@ -177,30 +262,47 @@ Create a scree plot to help the decision on how many factors to include.
 Run the factor analysis with the chosen number of factors.
 
 ```{r}
-
+fa <- factanal(reduced, factors = 5, rotation = "varimax")
+fa
 ```
 
 Sort the communality scores in decreasing order.
 
 ```{r}
+# we compute them by squaring loadings
+communality <- sort(apply(fa$loadings^2, 1, sum),decreasing=TRUE)
+communality
+# we have some pretty high scores that can mirror an appropriate factor model. Another method:
+comm2 <- 1 - apply(fa$loadings^2, 1, sum)
+comm2
 
+#plus: Another indicator might be: lower uniqueness scores:
+uniq<- sort(fa$uniquenesses)
+mean(uniq)
+mean(communality) # almost equal but there is a slight difference in favor or the communality
 ```
 
 Calculate the mean communality scores.
 
 ```{r}
-
+meancom <- mean(communality)
+meancom # 0.529
 ```
 
 Show the factor loadings for the chosen factor structure.
 
 ```{r}
-
+loadings <- fa$loadings
+loadings
 ```
 
 Visualize the factor structure.
 
 ```{r}
+summary(loadings)
+
+# to coincide columns:
+format <- melt(loadings, measure=c("F1", "F2", "F3", "F4", "F5"), variable.name="Factor", value.name="Loading")
 
 ```
 
@@ -209,13 +311,17 @@ Visualize the factor structure.
 Calculate the factor scores.
 
 ```{r}
-
+fscores <- factor.scores(reduced, fa)
+fscores
+scores<- fscores$scores
+scores
 ```
 
 Bind factor scores to the original dataset.
 
 ```{r}
-
+orig <- cbind(reduced,scores)
+view(orig)
 ```
 
 Run the logistic regression.
@@ -223,4 +329,3 @@ Run the logistic regression.
 ```{r}
 
 ```
-
