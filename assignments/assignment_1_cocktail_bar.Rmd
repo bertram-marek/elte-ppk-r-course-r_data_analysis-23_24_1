@@ -17,6 +17,7 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(readr)
 ```
 
 # Background
@@ -32,7 +33,11 @@ Note: There are several different ways to solve these tasks, feel free to come u
 Read the cocktail dataset from: <https://github.com/nthun/cocktail-balance> You can also find the codebook there.
 
 ```{r}
+link <- "https://github.com/nthun/cocktail-balance/raw/master/cocktail_data.tsv"
 
+adatok <- read_tsv(link)
+
+head(adatok)
 ```
 
 ## 2. Transform the data table and clean the ingredient variable!
@@ -40,6 +45,15 @@ Read the cocktail dataset from: <https://github.com/nthun/cocktail-balance> You 
 The ingredients are currently in a single cell for each cocktail. It would be better to put them in separate rows. Also, the variable should be cleaned of all quantities (e.g. 1/2 oz, 2 dashes, etc.), and the indicator of alcohol content (e.g. 47.3% abv). You will need to use this cleaned table in later tasks.
 
 ```{r}
+separated <- adatok %>%
+  separate_rows(ingredients, sep = "<br/>|<br>|<b>")
+
+words_to_remove <- c("bsp", "es", "dash", "drops", "oz", "/", "\\(", "\\)", "%", "abv", "\\.")
+words_to_remove <- c(words_to_remove, as.character(0:9))
+
+sep_and_clean <- separated %>%
+  mutate(ingredients = str_replace_all(ingredients, paste(words_to_remove, collapse = "|"), "")) %>%
+  mutate(ingredients = str_squish(ingredients))
 
 ```
 
@@ -48,7 +62,12 @@ The ingredients are currently in a single cell for each cocktail. It would be be
 Before opening the bar, you need to find a reliable supplier that has all the ingredients. You need to send a list of all possible ingredients you will need. They don't need the quantities (i.e. how many of these are needed), just the names of the ingredients.
 
 ```{r}
+unique_ingredients <- sep_and_clean %>%
+  pull(ingredients) %>%
+  unique() %>%
+  sort()
 
+unique_ingredients
 ```
 
 ## 4. Number of unique ingredients
@@ -56,6 +75,12 @@ Before opening the bar, you need to find a reliable supplier that has all the in
 How many different ingredients you will need?
 
 ```{r}
+unique_ingredients_count <- sep_and_clean %>%
+  pull(ingredients) %>%
+  unique() %>%
+  length()
+
+unique_ingredients_count
 
 ```
 
@@ -64,7 +89,13 @@ How many different ingredients you will need?
 What are the 10 most frequently used ingredients? If there are ties, you can list more than 10.
 
 ```{r}
+top_10_frequent <- sep_and_clean %>%
+  group_by(ingredients) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  top_n(10)
 
+top_10_frequent
 ```
 
 ## 6. Which cocktail(s) has/have the most ingredients?
@@ -72,7 +103,14 @@ What are the 10 most frequently used ingredients? If there are ties, you can lis
 Count the number of ingredients and filter all the cocktails that has that many.
 
 ```{r}
+most_ingr_cocktails <- sep_and_clean %>%
+  group_by(name) %>%
+  summarise(num_ingredients = n_distinct(ingredients)) %>%
+  arrange(desc(num_ingredients)) %>% 
+  filter(num_ingredients == max(num_ingredients))
 
+most_ingr_cocktails
+  
 ```
 
 ## 7. How many ingredients appear in only one cocktail (rare ingredient)?
@@ -80,19 +118,57 @@ Count the number of ingredients and filter all the cocktails that has that many.
 Count all cocktails with only one ingredient, and
 
 ```{r}
+#As far as I can see, the exercise below the question is incomplete, but I will try to answer it. Count all cocktails with only one ingredient:
 
+one_ingr_cocktails <- sep_and_clean %>%
+  group_by(name) %>%
+  summarise(num_ingredients = n_distinct(ingredients)) %>%
+  filter(num_ingredients == 1)
+
+one_ingr_cocktails
+
+#There are no cocktails with only one ingredient. The minimum is 2:
+
+min_ingr_cocktails <- sep_and_clean %>%
+  group_by(name) %>%
+  summarise(num_ingredients = n_distinct(ingredients)) %>%
+  filter(num_ingredients == min(num_ingredients))
+
+min_ingr_cocktails
+
+#How many ingredients appear in only one cocktail (rare ingredient)?
+
+ingredient_in_how_many_cocktails <- sep_and_clean %>%
+  group_by(ingredients) %>%
+  summarise(num_cocktails = n_distinct(name))
+
+num_rare_ingredients <- sum(ingredient_in_how_many_cocktails$num_cocktails == 1)
+
+num_rare_ingredients
 ```
 
 ## 8. Which cocktail has an ingredient that is only used in one cocktail?
 
 ```{r}
+rare_ingredients <- ingredient_in_how_many_cocktails %>%
+  filter(num_cocktails == 1)
 
+cocktails_with_rare_ingredient <- sep_and_clean %>%
+  filter(ingredients %in% rare_ingredients$ingredients) %>%
+  distinct(name)
+
+cocktails_with_rare_ingredient
 ```
 
 ## 9. What are the cocktails without rare ingredients?
 
 ```{r}
-  
+cocktails_without_rare_ingredient <- sep_and_clean %>%
+  group_by(name) %>%
+  filter(!any(ingredients %in% rare_ingredients$ingredients)) %>%
+  distinct(name)
+
+cocktails_without_rare_ingredient
 ```
 
 ## 10. Create a cheat sheet for the bartender!
@@ -108,6 +184,12 @@ tribble(~name, ~Lime, ~`White rum`, ~`Cane sugar`, ~`Coca-cola`, ~Mint, ~Soda,
 ```
 
 ```{r}
+cocktail_cheat_sheet <- sep_and_clean %>%
+  distinct(name, ingredients) %>%
+  pivot_wider(names_from = ingredients, values_from = ingredients, values_fn = length, values_fill = 0) %>%
+ mutate_at(vars(-name), ~ifelse(. == 1, "X", ""))
+
+cocktail_cheat_sheet
 
 ```
 

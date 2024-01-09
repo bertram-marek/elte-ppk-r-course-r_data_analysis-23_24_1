@@ -1,8 +1,10 @@
 ---
-title: "Assignment 3: Model comparison"
+title: 'Assignment 3: Model comparison'
 author: "Marton Kovacs/Zoltan Kekecs"
-output: html_document
-editor_options: 
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
   chunk_output_type: console
 ---
 
@@ -59,7 +61,24 @@ In your discussion of the findings, briefly interpret the results of the above a
 Read the dataset used in this assignment. Pay attention to the extension of the datafile.
 
 ```{r}
+# Loading the necessary packages and importing the data
 
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(broom)
+library(ggfortify)
+library(lmtest)
+library(olsrr)
+library(jtools)
+library(lm.beta)
+library(huxtable)
+
+# Turning off scientific notation
+
+options(scipen=999)
+
+data <- read_excel("/Users/lubicsoliver/Desktop/R_CLass/data/assignment_3_dataset.xlsx")
 ```
 
 ## Data and model diagnostics 
@@ -69,7 +88,44 @@ Read the dataset used in this assignment. Pay attention to the extension of the 
 Run an exploratory data analysis (EDA) to investigate the dataset.
 
 ```{r}
+# First, I take a look at the data, checking their types.
 
+str(data)
+
+# I look for any missing datapoints.
+
+any(is.na(data))
+
+# There are no missing values in the dataset. I'm checking if there are any duplicates.
+
+any(duplicated(data))
+
+# I check the minimum and maximum values of the numeric variables in the dataset and compare them with the description.
+
+summary(data)
+
+# It is already apparent that there will be coding errors in the dataset. The maximum pain level should be 10, but a value of 50 is observed. Also for the Mindfulness scale, there will be at least one too high value greater than 6. It's time to check the "sex" variable.
+
+table(data$sex)
+
+# Unfortunately this variable also has a coding error: one "woman" should be recoded to "female".But there may be some coding errors that I didn't notice with the human eye, so I run a filter based on the description. It also includes every row that might have a missing value.
+
+wrong_data <- data %>%
+  filter(
+    pain < 0 |
+    pain > 10 | 
+    mindfulness < 1 |
+    mindfulness > 6 |
+    !(sex %in% c("female", "male")) |
+    STAI_trait < 20 |
+    STAI_trait > 80 |
+    pain_cat < 0 |
+    pain_cat > 52 |
+    any(is.na(.)))
+
+wrong_data
+
+# In total 3 rows have a coding error, in one case the column "sex", in one case "pain", in one case "mindfulness" is wrong. Since the other values for these participants seem to be OK, I do not remove them from the data set, but I'll recode their values.
 ```
 
 #### Correct coding errors
@@ -77,7 +133,36 @@ Run an exploratory data analysis (EDA) to investigate the dataset.
 If you find values in the dataset during the EDA, that are not correct based on the provided descriptions of the variables of the dataset please correct them here.
 
 ```{r}
+# I'm fixing the coding errors. For the "mindfulness" and "pain" scales, I'm entering the maximum value, because the incorrect values were higher than that.
 
+good_data <- data %>%
+  mutate(
+    sex = ifelse(sex == "woman", "female", sex),
+    pain = ifelse(pain > 10, 10, pain),
+    mindfulness = ifelse(mindfulness > 6, 6, mindfulness))
+
+# I'm checking if it worked with the code I used previously. 
+
+wrong_data_2 <- good_data %>%
+  filter(
+    pain < 0 |
+    pain > 10 | 
+    mindfulness < 1 |
+    mindfulness > 6 |
+    !(sex %in% c("female", "male")) |
+    STAI_trait < 20 |
+    STAI_trait > 80 |
+    pain_cat < 0 |
+    pain_cat > 52 |
+    any(is.na(.)))
+
+wrong_data_2
+
+# Because there are no observations in "wrong_data_2", the code errors have been fixed. Now I will convert the sex variable to a factor.
+
+good_data$sex <- as.factor(good_data$sex)
+
+is.character(good_data$sex)
 ```
 
 ### Model diagnostics
@@ -87,6 +172,10 @@ In order to test the more complex model for outliers and to test the assumptions
 
 ```{r}
 
+
+complex_model <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum + cortisol_saliva, data = good_data)
+
+summary(complex_model)
 ```
 
 #### Checking for influential outliers
@@ -94,7 +183,20 @@ In order to test the more complex model for outliers and to test the assumptions
 Check for outlier values in the model.
 
 ```{r}
+# Checking Cook's distance and Studentized residuals
 
+augment(complex_model) %>%
+  select(.cooksd) %>% 
+  arrange(desc(.cooksd)) %>%
+  head(10)
+
+autoplot(
+  complex_model,
+  which = 4)
+
+ols_plot_resid_stud(complex_model)
+
+# Based on Cook's distance values the 3 most influential observations would be number 81, 106 and 110. However, I would not exclude them from the sample. The studentized residuals plot also does not indicate outliars.
 ```
 
 #### Checking assumptions
@@ -102,19 +204,35 @@ Check for outlier values in the model.
 Check the normality assumption.
 
 ```{r}
+# I am drawing a Q-Q plot to see if the residuals follow a normal distribution.
 
+autoplot(
+  complex_model,
+  which = 2)
+
+# Since the residuals closely follow the normal distribution, this assumption is not violated. However, note that the residual of obs. 142 is larger than expected.
 ```
 
 Check the linearity assumption.
 
 ```{r}
+# Since we have a lot of predictors, I am testing the assumption of linearity with a significance test.
 
+raintest(complex_model)
+
+# The p-value indicates a non-significant result, so the assumption of linearity is not violated. 
 ```
 
 Check the homoscedasticty assumption (homogeneity of variance).
 
 ```{r}
+# I'm drawing a "Residuals vs. Fitted values" plot to check if the homoscedasticty assumption is violated or not.
 
+autoplot(
+  complex_model,
+  which = 1)
+
+# Since the points are randomly scattered and they don't form a funnel shape or recognizably curved structure, the homoscedasticity condition is satisfied.
 ```
 
 Check the multicollinearity assumption.
@@ -126,7 +244,11 @@ https://statisticalhorizons.com/multicollinearity
 http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity-in-regression-analysis
 
 ```{r}
+# I'm checking the VIF scores:
 
+ols_vif_tol(complex_model)
+
+# "cortisol_serum" and "cortisol_saliva" have a pretty high VIF-value. 
 ```
 
 ### Making decision based on model diagnostics
@@ -134,12 +256,33 @@ http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity
 If based on the assumption tests you decide to drop a predictor variable you should do that here. Create your updated model.
 
 ```{r}
+# When I was checking the multicollinearity assumption, I found out that "cortisol_serum" and "cortisol_saliva" have a pretty high VIF-value. Since they are measuring the same thing, just in different ways, this is not a surprise. I decided to drop "cortisol_saliva" because according to the description, "cortisol_serum" is a more reliable measure of cortisol.
+
+# This is the new model:
+
+complex_model_2 <- lm(pain ~ age + sex + STAI_trait + pain_cat + mindfulness + cortisol_serum, data = good_data)
+
+summary(complex_model_2)
 
 ```
 
 #### Checking outliers of the updated model
 
 ```{r}
+# Checking Cook's distance and Studentized residuals of the updated model
+
+augment(complex_model_2) %>%
+  select(.cooksd) %>% 
+  arrange(desc(.cooksd)) %>%
+  head(10)
+
+autoplot(
+  complex_model_2,
+  which = 4)
+
+ols_plot_resid_stud(complex_model_2)
+
+# The same observations (n. 86, 106, 110) are the most influential in the new model as well, and they have a little bigger cook's distance value compared to the previous model. The Studentized residuals plot also does not show outliers above the recommended treshold, so I would not exclude any observation.
 
 ```
 
@@ -148,25 +291,43 @@ If based on the assumption tests you decide to drop a predictor variable you sho
 Normality assumption
 
 ```{r}
+# I am drawing a Q-Q plot to see if the residuals follow a normal distribution.
 
+autoplot(
+  complex_model_2,
+  which = 2)
+
+# I got the same result as before: since the residuals closely follow the normal distribution, this assumption is not violated. However, note that the residual of obs. 142 is larger than expected.
 ```
 
 Linearity assumption
 
 ```{r}
+raintest(complex_model_2)
 
+# The p-value indicates a non-significant result, so the assumption of linearity is not violated. 
 ```
 
 Homoscedasticty assumption (homogeneity of variance)
 
 ```{r}
+# I'm drawing a "Residuals vs. Fitted values" plot to check if the homoscedasticty assumption is violated or not.
 
+autoplot(
+  complex_model_2,
+  which = 1)
+
+# Since the points are randomly scattered and they don't form a funnel shape or recognizably curved structure, the homoscedasticity condition is satisfied.
 ```
 
 Multicollinearity assumption
 
 ```{r}
+# I'm checking the VIF scores:
 
+ols_vif_tol(complex_model_2)
+
+# Now, the VIF scores are all much closer to 1, so the multicollinearity problem has been solved by this new complex model.
 ```
 
 ## Model comparison
@@ -174,18 +335,84 @@ Multicollinearity assumption
 Create the simple model and get the results of the model that needs to be reported based on the What to report section.
 
 ```{r}
+# I created the simple model, then the standardized simple model (for the Beta-values). 
 
+simple_model <- lm(pain ~age + sex, data = good_data)
+standardized_simple_model <- lm.beta(simple_model)
+
+# Here, I calculated the results and saved them.
+
+result_unstandardized_simple <- summ(simple_model, confint = TRUE, digits = 3)
+result_standardized_simple <- summ(standardized_simple_model,confint = TRUE, digits = 3)
+
+# This is the result of the unstandardized simple model. You can find the test statistics (adj.R2, F, df, and p value) in the output, and also the unstandardized regression coefficients (B-values), 95% confidence intervals, and p-values.
+
+result_unstandardized_simple
+
+# This is the result of the standardized simple model. The test statistics (adj.R2, F, df, and p value) are the same as the previous, unstandardized model, but you can also the standardized regression coefficients (Beta-values), 95% confidence intervals, and p-values in this.
+
+result_standardized_simple
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
 
 ```{r}
+# The unstandardized complex model was created before, here I created the standardized complex model (for the Beta-values). 
 
+standardized_complex_model_2 <- lm.beta(complex_model_2)
+
+# Here, I calculated the results and saved them.
+
+results_unstandardized_complex <- summ(complex_model_2, confint = TRUE, digits = 3)
+results_standardized_complex <-  summ(standardized_complex_model_2, confint = TRUE, digits = 3)
+
+# This is the result of the unstandardized complex model. You can find the test statistics (adj.R2, F, df, and p value) in the output, and also the unstandardized regression coefficients (B-values), 95% confidence intervals, and p-values.
+
+results_unstandardized_complex
+
+# This is the result of the standardized complex model. The test statistics (adj.R2, F, df, and p value) are the same as the previous, unstandardized model, but you can also the standardized regression coefficients (Beta-values), 95% confidence intervals, and p-values in this.
+
+results_standardized_complex
 ```
 
 Compare the two models.
 
 ```{r}
+# Here, I calculated and saved the Akaike information criterion (AIC) for both models.
 
+aic_simple_model <- AIC(simple_model)
+aic_complex_model_2 <- AIC(complex_model_2)
+
+# This is the Akaike information criterion (AIC) tibble for easier comparison.
+
+AIC_table <- tibble(
+  "Model" = c("Simple Model", "Complex Model"),
+  "AIC" = c(aic_simple_model, aic_complex_model_2))
+
+AIC_table
+
+# We can easily compare the two models below, this output includes the coefficients, and also the R-squared values.
+
+export_summs(simple_model, complex_model_2, scale = TRUE,
+             error_format = "[{conf.low}, {conf.high}]")
+
+
+# F-test comparing the two models
+
+f_test_result <- anova(simple_model, complex_model_2)
+
+# Displaying the F-test result (F-statistic and p-value)
+
+f_test_result
+
+# Likelihood ratio test comparing the two models
+
+lr_test_result <- lrtest(simple_model, complex_model_2)
+
+# Displaying the likelihood ratio test result (likelihood ratio statistic and p-value)
+
+lr_test_result
+
+# From all the results above, we can conclude that our complex model performed better than our simple model. Both the ANOVA test and the likelihood ratio test showed significant differences between the two models. The AIC of the complex model was smaller than that of the simple model, indicating a better fit. In the complex model, the R-squared value was higher than in the simple model, indicating that more of the variance in pain was explained by the independent variables in that model (there was added value in adding the psychological and hormonal predictors).
 ```
 
