@@ -59,7 +59,16 @@ In your discussion of the findings, briefly interpret the results of the above a
 Read the dataset used in this assignment. Pay attention to the extension of the datafile.
 
 ```{r}
+setwd("~/Desktop/ELTE_PPK_PHD/Statisztikai Elemzes/Assignments")
 
+#install.packages("readxl")
+library(readxl)
+
+# Read the Excel file
+df <- read_excel("~/Desktop/ELTE_PPK_PHD/Statisztikai Elemzes/Assignments/assignment_3_dataset.xlsx")
+
+# View the first few rows of the data frame
+head(df)
 ```
 
 ## Data and model diagnostics 
@@ -69,6 +78,68 @@ Read the dataset used in this assignment. Pay attention to the extension of the 
 Run an exploratory data analysis (EDA) to investigate the dataset.
 
 ```{r}
+#Initial Exploration:
+#Look at the structure of the dataset.
+#View the first few rows.
+
+library(tidyverse)
+
+str(df)
+head(df)
+
+
+#Summary Statistics:
+summary(df)
+
+# For categorical columns:
+table(df$sex)
+
+#Visual Exploration
+# Histogram for a numeric column, say "numeric_column":
+ggplot(df, aes(x = pain)) + 
+  geom_histogram(binwidth = 2, fill = "skyblue", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of pain")
+
+ggplot(df, aes(x = age)) + 
+  geom_histogram(binwidth = 5, fill = "red", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of age")
+
+ggplot(df, aes(x = STAI_trait)) + 
+  geom_histogram(binwidth = 3, fill = "yellow", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of STAI_trait")
+
+ggplot(df, aes(x = pain_cat)) + 
+  geom_histogram(binwidth = 3, fill = "green", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of pain_cat")
+
+ggplot(df, aes(x = cortisol_serum)) + 
+  geom_histogram(binwidth = 0.5, fill = "grey", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of cortisol_serum")
+
+ggplot(df, aes(x = cortisol_saliva)) + 
+  geom_histogram(binwidth = 0.75, fill = "white", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of cortisol_saliva")
+
+ggplot(df, aes(x = mindfulness)) + 
+  geom_histogram(binwidth = 0.5, fill = "orange", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of mindfulness")
+
+ggplot(df, aes(x = weight)) + 
+  geom_histogram(binwidth = 10, fill = "blue", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of weight")
+
+ggplot(df, aes(x = IQ)) + 
+  geom_histogram(binwidth = 10, fill = "brown", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of IQ")
+
+ggplot(df, aes(x = household_income)) + 
+  geom_histogram(binwidth = 10000, fill = "violet", color = "black", alpha = 0.7) + 
+  labs(title = "Histogram of household_income")
+
+# Bar plot for a categorical column:
+ggplot(df, aes(x = sex)) + 
+  geom_bar(fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(title = "Bar plot of Sex")
 
 ```
 
@@ -77,7 +148,7 @@ Run an exploratory data analysis (EDA) to investigate the dataset.
 If you find values in the dataset during the EDA, that are not correct based on the provided descriptions of the variables of the dataset please correct them here.
 
 ```{r}
-
+df$sex <- ifelse(df$sex == "woman", "female", df$sex)
 ```
 
 ### Model diagnostics
@@ -86,6 +157,11 @@ If you find values in the dataset during the EDA, that are not correct based on 
 In order to test the more complex model for outliers and to test the assumptions first build the model.
 
 ```{r}
+# Fit the multiple linear regression model
+model <- lm(pain ~ age + STAI_trait + pain_cat + cortisol_serum + cortisol_saliva + mindfulness + weight + IQ + household_income + sex, data = df)
+
+# Display a summary of the model
+summary(model)
 
 ```
 
@@ -94,27 +170,67 @@ In order to test the more complex model for outliers and to test the assumptions
 Check for outlier values in the model.
 
 ```{r}
+# Find outliers and make a plot
+cooksd <- cooks.distance(model)
+plot(cooksd, pch = "*", cex = 2, main = "Cook's Distance")
+abline(h = 4*mean(cooksd, na.rm=T), col="red")  # influential point threshold
 
+
+# Find outliers and make a plot
+std_residuals <- rstandard(model)
+plot(std_residuals ~ fitted(model), ylab = "Standardized Residuals")
+abline(h = c(-3, 3), col = "red")
+
+# Find outliers
+outliers <- which(abs(std_residuals) > 3)
+
+# Outliers will now contain the row numbers of the data points that are outliers
+print(outliers)
+
+# Remove outliers from the dataset
+data_cleaned <- df[-outliers, ]
 ```
+
+```{r}
+# Fit the multiple linear regression model again without the outlier
+model.2 <- lm(pain ~ age + STAI_trait + pain_cat + cortisol_serum + cortisol_saliva + mindfulness + weight + IQ + household_income + sex, data = data_cleaned)
+
+# Display a summary of the model
+summary(model.2)
+```
+
 
 #### Checking assumptions
 
 Check the normality assumption.
 
 ```{r}
+qqnorm(residuals(model.2))
+qqline(residuals(model.2))
 
+shapiro.test(residuals(model.2))
+
+ks.test(residuals(model.2), "pnorm", mean(residuals(model.2)), sd(residuals(model.2)))
+
+hist(residuals(model.2), breaks=30, main="Histogram of Residuals", xlab="Residuals")
 ```
 
 Check the linearity assumption.
 
 ```{r}
-
+plot(model.2, which = 1)
 ```
 
 Check the homoscedasticty assumption (homogeneity of variance).
 
 ```{r}
+# Install and load the package
+#install.packages("lmtest")
+#A significant p-value indicates heteroscedasticity. 
 
+library(lmtest)
+
+bptest(model.2)
 ```
 
 Check the multicollinearity assumption.
@@ -126,7 +242,14 @@ https://statisticalhorizons.com/multicollinearity
 http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity-in-regression-analysis
 
 ```{r}
+# Install and load the package
+#install.packages("car")
 
+#A VIF value above 5-10 suggests high multicollinearity
+library(car)
+
+vif_values <- vif(model.2)
+print(vif_values)
 ```
 
 ### Making decision based on model diagnostics
@@ -134,13 +257,57 @@ http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity
 If based on the assumption tests you decide to drop a predictor variable you should do that here. Create your updated model.
 
 ```{r}
+# Assuming you're dropping a predictor named 'drop_this_predictor'
+#updated_model <- lm(response_variable ~ . - drop_this_predictor, data = df)
+#summary(updated_model)
 
+```
+
+
+```{r}
+# Calculate studentized residuals
+stud_res <- rstudent(model.2)
+
+# Typically, absolute values greater than 2 or 3 are considered large.
+potential_outliers <- which(abs(stud_res) > 3)
+print(potential_outliers)
+
+```
+
+
+```{r}
+cook_d <- cooks.distance(model.2)
+
+# A common rule of thumb is that observations with Cook's distance greater than 4/(n-k-1) might be outliers.
+# where n is the number of observations and k is the number of predictors.
+threshold <- 4/(length(cook_d) - length(coef(model.2)) - 1)
+influential_obs <- which(cook_d > threshold)
+print(influential_obs)
+
+```
+
+```{r}
+# Let's say you've decided to remove based on Cook's distance
+df_cleaned <- data_cleaned[-influential_obs, ]
 ```
 
 #### Checking outliers of the updated model
 
 ```{r}
+# Fit the multiple linear regression model
+model.updated <- lm(pain ~ age + STAI_trait + pain_cat + cortisol_serum + cortisol_saliva + mindfulness + weight + IQ + household_income + sex, data = df_cleaned)
 
+# Display a summary of the model
+summary(model.updated)
+
+
+cook_d <- cooks.distance(model.updated)
+
+# A common rule of thumb is that observations with Cook's distance greater than 4/(n-k-1) might be outliers.
+# where n is the number of observations and k is the number of predictors.
+threshold <- 4/(length(cook_d) - length(coef(model.updated)) - 1)
+influential_obs <- which(cook_d > threshold)
+print(influential_obs)
 ```
 
 #### Checking assumptions of the updated model
@@ -148,25 +315,32 @@ If based on the assumption tests you decide to drop a predictor variable you sho
 Normality assumption
 
 ```{r}
+qqnorm(residuals(model.updated))
+qqline(residuals(model.updated))
 
+shapiro.test(residuals(model.updated))
 ```
 
 Linearity assumption
 
 ```{r}
-
+plot(model.updated, which = 1)
 ```
 
 Homoscedasticty assumption (homogeneity of variance)
 
 ```{r}
-
+bptest(model.updated)
 ```
 
 Multicollinearity assumption
 
 ```{r}
+#A VIF value above 5-10 suggests high multicollinearity
+library(car)
 
+vif_values <- vif(model.updated)
+print(vif_values)
 ```
 
 ## Model comparison
@@ -174,18 +348,223 @@ Multicollinearity assumption
 Create the simple model and get the results of the model that needs to be reported based on the What to report section.
 
 ```{r}
+#The __simpler model__ should contain __age and sex as predictors of pain_
+
+# Fit the multiple linear regression model
+model.simple <- lm(pain ~ age + sex, data = df_cleaned)
+
+# Display a summary of the model
+summary(model.simple)
 
 ```
 
 Create the more complex model based on the results of the model diagnostics. Also, get the results that needs to be reported based on the What to report section.
 
 ```{r}
+# Fit the multiple linear regression model
+model.updated <- lm(pain ~ age + STAI_trait + pain_cat + cortisol_serum + cortisol_saliva + mindfulness + weight + IQ + household_income + sex, data = df_cleaned)
 
+# Display a summary of the model
+summary(model.updated)
 ```
 
 Compare the two models.
 
 ```{r}
+rsq_simple <- summary(model.simple)$r.squared
+rsq_complex <- summary(model.updated)$r.squared
+
+#R-squared measures the proportion of variability in the response variable that's explained by the model. A higher R-squared value typically indicates a better fit to the data, but it will almost always increase or stay the same as you add more predictors, even if they are irrelevant.
+```
+
+```{r}
+adjrsq_simple <- summary(model.simple)$adj.r.squared
+adjrsq_simple
+adjrsq_complex <- summary(model.updated)$adj.r.squared
+adjrsq_complex
+```
+
+```{r}
+aic_simple <- AIC(model.simple)
+aic_simple
+aic_complex <- AIC(model.updated)
+aic_complex
+
+bic_simple <- BIC(model.simple)
+bic_simple
+bic_complex <- BIC(model.updated)
+bic_complex
+
+#Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC) are measures used for model selection. Lower values of AIC or BIC are indicative of better-fitting models.
+```
+
+```{r}
+#The anova() function can be used to compare the two models. If the complex model is significantly better than the simpler model, the p-value will be small.
+
+anova(model.simple, model.updated)
 
 ```
 
+Report the results of the simpler model and the more complex model. For both models you should report the model test statistics (adj.R2, F, df, and p value). Also, report the statistics describing the coefficients of the predictors in a table format (unstandardized regression coefficients and 95% confidence intervals, standardized regression coefficients (B and Beta values), and p values).
+
+```{r}
+# Extract Adjusted R-squared from both models
+adj_r2_simple <- summary(model.simple)$adj.r.squared
+adj_r2_complex <- summary(model.updated)$adj.r.squared
+
+# Display Adjusted R-squared
+adj_r2_simple
+adj_r2_complex
+
+```
+
+```{r}
+# Extract F-statistic and p-value from both models
+fstat_simple <- summary(model.simple)$fstatistic
+fstat_complex <- summary(model.updated)$fstatistic
+
+# Calculate p-values
+pval_simple <- pf(fstat_simple[1], fstat_simple[2], fstat_simple[3], lower.tail = FALSE)
+pval_complex <- pf(fstat_complex[1], fstat_complex[2], fstat_complex[3], lower.tail = FALSE)
+
+# Display F-statistic and p-value
+fstat_simple
+pval_simple
+fstat_complex
+pval_complex
+
+```
+For the Simple Model: 
+Adjusted R-squared: 0.1074
+F-statistic: 9.902 on 2 and 146 degrees of freedom
+p-value: 9.274e-05
+
+```{r}
+# Simple Model
+
+# Load necessary libraries
+library(knitr)
+# Create a table of coefficients for the simple model
+kable(summary(model.simple)$coefficients, caption = "Coefficients of the Simple Model")
+```
+
+For the Complex Model:
+
+Adjusted R-squared: 0.4428
+F-statistic: 12.76 on 10 and 138 degrees of freedom
+p-value: 1.471e-15
+```{r}
+# Complex Model
+
+# Create a table of coefficients for the complex model
+kable(summary(model.updated)$coefficients, caption = "Coefficients of the Complex Model")
+```
+
+## Model Comparison
+The Adjusted R-squared increased from 0.1074 in the simpler model to 0.4428 in the more complex model, indicating a substantial increase in the amount of variance in pain explained by including psychological and hormonal variables.
+
+The F-statistic and its associated p-value also support the more complex model, indicating that the additional variables significantly improve the model.
+
+
+
+## Regression Equation for the More Complex Model
+
+The regression equation based on the estimated coefficients is as follows:
+
+\[
+\begin{aligned}
+\text{Pain} = & \ 0.6561 \\
+& - 0.02537 \times \text{Age} \\
+& - 0.01710 \times \text{STAI\_trait} \\
+& + 0.1156 \times \text{Pain\_Catastrophizing} \\
+& - 0.05647 \times \text{Cortisol\_Serum} \\
+& + 0.6668 \times \text{Cortisol\_Saliva} \\
+& - 0.05839 \times \text{Mindfulness} \\
+& - 0.01599 \times \text{Weight} \\
+& + 0.004028 \times \text{IQ} \\
+& + 0.000003276 \times \text{Household\_Income} \\
+& + 0.3506 \times \text{Sex\_Male}
+\end{aligned}
+\]
+
+
+
+Compare the two models in terms of how much variance they explain of pain’s variability in the sample. Report Akaike information criterion (AIC) for both models and the F test statistic and p value of the likelihood ratio test comparing the two models.
+
+## Model Comparison Summary
+
+Adjusted R-squared
+The adjusted R-squared for the simpler model is 0.1074.
+The adjusted R-squared for the more complex model is 0.4428.
+
+This indicates that the more complex model explains approximately 44.28% of the variance in pain, which is a significant improvement over the 10.74% explained by the simpler model.
+
+Akaike Information Criterion (AIC)
+
+The AIC for the simpler model is 520.7289.
+The AIC for the more complex model is 458.1112.
+
+A lower AIC suggests a better model fit, given that it penalizes the complexity of the model. The substantial decrease in AIC for the more complex model suggests that it fits the data much better than the simpler model despite the additional parameters.
+
+Bayesian Information Criterion (BIC)
+
+The BIC for the simpler model is 532.7447.
+The BIC for the more complex model is 494.1586.
+
+Like AIC, a lower BIC value indicates a better model fit. The decrease in BIC when moving from the simpler model to the more complex model also suggests an improved fit, even after accounting for model complexity.
+
+ANOVA Comparison (Likelihood Ratio Test)
+
+The F-statistic for comparing the two models is 11.987.
+The p-value for this test is 6.755e-13.
+
+The ANOVA comparison shows that the more complex model provides a significantly better fit to the data than the simpler model (as indicated by the highly significant p-value).
+
+
+```{r}
+# Install and load required package
+if (!require("kableExtra")) {
+  install.packages("kableExtra")
+}
+library(kableExtra)
+
+# Create comparison table for model fit statistics
+comparison_table <- data.frame(
+  Metric = c("Adjusted R-squared", "AIC", "BIC"),
+  `Simpler Model` = c(0.1073817, 520.7289, 532.7447),
+  `More Complex Model` = c(0.4428268, 458.1112, 494.1586)
+)
+
+# Create ANOVA comparison table
+anova_results <- data.frame(
+  `F-statistic` = 11.987,
+  `p-value` = format.pval(6.755e-13, digits=2, eps=0.01)
+)
+
+# Generate tables with kable and kableExtra for better formatting
+model_comparison_table <- kable(comparison_table, caption = "Model Fit Statistics Comparison", 
+                                booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+anova_comparison_table <- kable(anova_results, caption = "ANOVA Comparison of the Two Models", 
+                                booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+# Print tables
+model_comparison_table
+anova_comparison_table
+
+```
+
+
+# What to discuss
+
+In your discussion of the findings, briefly interpret the results of the above analyses, and indicate whether you think that anything was gained by including the psychological and hormone measures in the model.
+
+The hierarchical regression analysis comparing the two models shows that the inclusion of psychological and hormonal measures significantly improves the ability of the model to explain the variance in postoperative pain. This is evidenced by the substantial increase in the Adjusted R-squared value from 0.1074 in the simpler model to 0.4428 in the more complex model, indicating that a much larger proportion of the variance in pain is accounted for when these additional variables are included.
+
+The Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC) values are both lower for the more complex model (AIC: 458.1112, BIC: 494.1586) compared to the simpler model (AIC: 520.7289, BIC: 532.7447). Lower values of AIC and BIC suggest that the more complex model has a better fit to the data, despite the larger number of predictors.
+
+The F-test from the ANOVA comparing the two models is highly significant (F = 11.987, p < 0.001), indicating that the additional variables in the more complex model contribute to a statistically significant improvement in modeling the pain outcome.
+
+Overall, the results suggest that psychological factors like pain catastrophizing and mindfulness, as well as hormonal measures like cortisol levels, provide substantial additional information about postoperative pain beyond what is explained by demographic variables alone.
