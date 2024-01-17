@@ -1,0 +1,137 @@
+---
+title: "R_DATA_Course"
+author: "Anna Oszvald"
+date: "2023 M12 11"
+output: html_document
+---
+
+```{r}
+
+#Load Data
+coffee_ratings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-07-07/coffee_ratings.csv')
+
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+# Download/Load packages
+if (!requireNamespace("rmarkdown", quietly = TRUE)) {
+  install.packages("rmarkdown")
+}
+
+# Explore Data
+print(summary(coffee_ratings))
+```
+
+```{r}
+# My question: Does sweetness correlate with cupper points? Hypothesis: Higher sweetness results in better cupper points.
+```
+
+```{r}
+# Histogram of sweetness
+hist(coffee_ratings$sweetness, main = "Histogram of Sweetness", xlab = "Sweetness")
+```
+
+```{r}
+# Histogram of cupper_points
+hist(coffee_ratings$cupper_points, main = "Histogram of Cupper Points", xlab = "Cupper Points")
+```
+
+```{r}
+# Scatter plot: Sweetness vs. Cupper Points
+plot(coffee_ratings$sweetness, coffee_ratings$cupper_points, 
+     main = "Scatter Plot: Sweetness vs. Cupper Points",
+     xlab = "Sweetness", ylab = "Cupper Points")
+```
+
+
+```{r}
+# Log transformation
+log_sweetness <- log(coffee_ratings$sweetness + 1)  # Adding 1 to avoid log(0)
+log_cupper_points <- log(coffee_ratings$cupper_points + 1)
+
+# Scatter plot with log-transformed variables
+plot(log_sweetness, log_cupper_points, main = "Scatter Plot: Log(Sweetness) vs. Log(Cupper Points)",
+     xlab = "Log(Sweetness)", ylab = "Log(Cupper Points)", col = "green", pch = 16, cex = 1.5)
+
+# Load necessary libraries
+library(MASS)
+# Apply different transformations including log
+sqrt_sweetness <- sqrt(coffee_ratings$sweetness)
+reciprocal_sweetness <- 1 / coffee_ratings$sweetness
+square_sweetness <- coffee_ratings$sweetness^2
+exp_sweetness <- exp(coffee_ratings$sweetness)
+log_sweetness <- log(coffee_ratings$sweetness + 1)  # Adding 1 to avoid log(0)
+
+# Create a data frame for correlation calculation
+correlation_data <- data.frame(
+  Original = coffee_ratings$sweetness,
+  Sqrt = sqrt_sweetness,
+  Reciprocal = reciprocal_sweetness,
+  Square = square_sweetness,
+  Exponential = exp_sweetness,
+  Log = log_sweetness,
+  CupperPoints = coffee_ratings$cupper_points
+)
+
+# Calculate and print correlation for each transformation
+correlation_results <- lapply(
+  names(correlation_data)[-length(names(correlation_data))],
+  function(var_name) {
+    cor_value <- cor(correlation_data[[var_name]], correlation_data$CupperPoints)
+    print(paste("Correlation (", var_name, "):", round(cor_value, 4)))
+  }
+)
+
+```
+
+```{r}
+#The log-transformed sweetness shows the highest correlation with cupper points at 0.3305.
+#This means that there is a moderate positive relationship between the logarithm of sweetness and cupper points. As #sweetness increases, cupper points tend to increase too.
+
+```
+
+```{r}
+
+#To asses the sweetness effect by considering variability in other factors that are likely a factor between sweetness and cupper points as well. 
+
+#Assumptions: Normality of residuals, absence of multicollinearity, homoscedasticity, and validity of assumptions related to random effects.
+
+```
+
+```{r}
+
+# Model diagnostics and checks
+library(ggplot2)
+library(lme4)
+
+# Fit the linear mixed model without removing outliers
+lmm_model <- lmer(total_cup_points ~ sweetness + (1 | farm_name) + (1 | harvest_year), data = coffee_ratings)
+
+# Extract fixed effects and residuals
+fixed_effects <- fixef(lmm_model)
+residuals <- residuals(lmm_model)
+
+
+```
+
+```{r}
+
+# Model summary
+summary(lmm_model)
+
+```{r}
+
+# Plotting Sweetness vs. Cupping Points 
+library(ggplot2)
+ggplot(coffee_ratings, aes(x = sweetness, y = total_cup_points)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Sweetness vs. Cupping Points",
+       x = "Sweetness",
+       y = "Cupping Points") +
+  theme_minimal()
+
+
+
+
+#The fixed effect estimate for sweetness 3.8629. Thea standard error is 0.1561, t 24.74. This suggests that on avg, each unit increase in sweetness is associated with an increase of approximately 3.86 units in cupper points.
+
+```
